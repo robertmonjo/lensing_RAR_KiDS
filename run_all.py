@@ -40,7 +40,7 @@ STEPS = [
 
 # Auxiliary/exploratory figures deliberately NOT in STEPS: make_fig_gs_fields.py and
 # make_fig_xi_req.py.  They are diagnostic plots that do NOT appear in the manuscript
-# (main.tex includes only fig1_kids_rar, figA1_regimes and figA2_landscape),
+# (the paper includes only fig1_kids_rar, figA1_regimes and figA2_landscape),
 # so they are excluded from the reproduction pipeline.  Run them by hand if needed.
 
 def main():

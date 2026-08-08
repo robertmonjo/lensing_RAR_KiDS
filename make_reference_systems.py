@@ -12,15 +12,15 @@ so the reported s are directly comparable.  Error bars are the SAMPLE DISPERSION
   * X-COP   : 5 complete clusters (Eckert 2022, via Monjo 2025b) -> r_eq from M500,bar.
 
   * gal-gal WL: Mistele (2024) stacked circular velocities (4 mass bins x 5 radii).
-  * Milky Way : from ../vertical_gravity_hmg (published two-branch fit).
+  * Milky Way : published radial + vertical two-branch fit.
 
 For EVERY system both s<->1/s solution branches are FITTED independently (never s_mirror = 1/s)
 and a `degenerate` flag records whether the data can statistically separate them -- a
 likelihood-ratio (Wilks) test on the TOTAL Delta chi2 between branches (see the DELTA_DEG block
 below).  make_figA2_landscape.py fills both stars when degenerate, else opens the disfavoured one.
 
-Data live in data/external_reference/ (copied from cluster_galaxy_relation_apj, hydrostatic_
-equilibrium_xcop, Weak_lensing_flat_rotation and vertical_gravity_hmg).
+Data live in data/external_reference/ (each file carries a provenance header citing its
+published source).
 Output: outputs/reference_systems.csv (+ per-object CSVs), read by make_figA2_landscape.py.
 """
 import os
@@ -221,7 +221,7 @@ print(f"  [Delta chi2 branches] SPARC={abs(_sp_wh-_sp_wl):.1f}  HIFLUGCS={abs(_h
       f"X-COP={abs(_xc_clo-_xc_chi):.1f}  (degenerate if <{DELTA_DEG})")
 print(f"  [X-COP] s<1 median={_xcm:.2f} [{_xcl:.2f},{_xch:.2f}]  s>1 mirror median={_xom:.2f} "
       f"[{_xol:.2f},{_xoh:.2f}]  r_eq median={_xrm:.2f} Mpc  (N={len(xcop_sf)})")
-# Milky Way (vertical_gravity_hmg, release nbar4): two degenerate branches published in the paper's
+# Milky Way (published nbar4 fit): two degenerate branches published in the paper's
 # results table -- s=2.00 (+0.33,-0.30) [s>=1] and mirror s=0.50 (+0.09,-0.07) [s<1]; the s<1 branch
 # has the (marginally) lower chi2, so it is the filled one. r_eq from M_b^con = 7.36e10 Msun (MI).
 _mw_req = r_newton_kpc(7.36e10) / 1000.0
@@ -246,8 +246,8 @@ _gw_slo, _gw_chi_lo = _fit_s(_gw_r, _gw_gb, _gw_go, err=_gw_sl, s_range=(0.15, 1
 _gw_req = r_newton_kpc(1.0e11) / 1000.0
 _gw_deg = abs(_gw_chi_hi - _gw_chi_lo) < DELTA_DEG
 # Adopted s>1 = the PUBLISHED value (Monjo 2025, ApJ 982): s = r_nei/r_sys = 1/e0 from the pooled
-# epsilon-HMG fit to Mistele's circular velocities (Weak_lensing_flat_rotation/repo/tables/
-# fit_summary_python.csv, eps0inv_Fig1 = 2.5378 [-0.1791,+0.2086], chi2=17.96, Delta chi2=2.25 / 1.5 sigma)
+# epsilon-HMG fit to Mistele's circular velocities (eps0inv = 2.5378 [-0.1791,+0.2086],
+# chi2=17.96, Delta chi2=2.25 / 1.5 sigma)
 # -> 2.54^{+0.21}_{-0.18}.  NOT re-fit here; kept identical to Table A.1 and the source paper.
 # Mirror s<1 = fitted here; its error bar is the 1.5 sigma (Delta chi2=2.25) profile interval (same
 # criterion as the paper), replacing the earlier hand-set +/-10%.

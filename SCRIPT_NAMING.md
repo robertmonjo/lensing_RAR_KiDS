@@ -1,10 +1,10 @@
 # Script naming — scheme and run order
 
-Self-describing naming: each figure generator is named by its figure position in the paper, and the script name, its output file, the `\includegraphics` in `main.tex` and the Overleaf `figures/` blob all share the same base name.
+Self-describing naming: each figure generator is named by its figure position in the paper, and the script name, its output file and the `\includegraphics` name in the paper source all share the same base name.
 
 ## Naming map
 
-| Script | Type | Purpose | Output = includegraphics = Overleaf blob |
+| Script | Type | Purpose | Output file (= `\includegraphics` name) |
 |---|---|---|---|
 | `run_all.py` | entry point | orchestrates the whole pipeline | everything below |
 | `hmg_model.py` | library (imported, not run) | constants, HMG/MOND/CDM model, KiDS data, `./data` loaders | — |
@@ -16,9 +16,9 @@ Self-describing naming: each figure generator is named by its figure position in
 | `xcop_rnei_nsig.py` | data | X-COP n_sigma from the r_nei model | `outputs/xcop_rnei_nsig.txt` |
 | `make_tab_regimes.py` | table | Table A.1 (regimes) | `outputs/tab_regimes.csv`, `tab_regimes_body.tex` |
 
-Figure position ↔ `main.tex` label. **Labels are kept as-is**; only the figure *file names* follow the numbering scheme (1 body; A.1, A.2 appendix):
+Figure position ↔ paper label. **Labels are kept as-is**; only the figure *file names* follow the numbering scheme (1 body; A.1, A.2 appendix):
 
-| paper position | main.tex label | figure file (script, output, includegraphics, Overleaf blob) |
+| paper position | paper label | figure file (script, output, `\includegraphics`) |
 |---|---|---|
 | Fig. 1 (body)       | `fig:kids_rar`       | `fig1_kids_rar` |
 | Fig. A.1 (appendix) | `fig:hmg_regimes`    | `figA1_regimes` |

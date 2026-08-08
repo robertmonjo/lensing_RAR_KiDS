@@ -233,9 +233,9 @@ def _q_dl(x):
     return math.cos(gam) / max(gam, 1e-12)
 
 def g_s_dl(s):
-    # Morphological deep limit: xi_s^2 = 1/s^3 (Hubble term dropped; see main.tex).
+    # Morphological deep limit: xi_s^2 = 1/s^3 (Hubble term dropped).
     # The q argument is x = 1/xi_s = s^{3/2}. Since delta(x) = delta(1/x), _q_dl(s**1.5)
-    # equals q(xi^2 = 1/s^3), the form quoted in main.tex.
+    # equals q(xi^2 = 1/s^3).
     return 2.0 * C_KMS / T0 * _q_dl(s**1.5) * CODE_TO_SI
 
 def hmg_pred_dl(gbar, s):

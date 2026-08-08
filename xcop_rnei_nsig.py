@@ -6,8 +6,7 @@ WHY TWO MODELS EXIST, AND WHY ONLY ONE IS VALID FOR X-COP
 ---------------------------------------------------------
 The Hyperconical Modified Gravity (HMG; Monjo 2025, ApJ 981, 195,
 DOI 10.3847/1538-4357/adb723) prediction for a cluster depends on the local
-projection factor eps0(r). Two ways to set it have been compared on X-COP
-(see 00_projectes/hydrostatic_equilibrium_xcop/memory/model_comparison.md):
+projection factor eps0(r). Two ways to set it have been compared on X-COP:
 
   * Model B -- "scalar s" (one CONSTANT eps per cluster).  A single scalar
     s (equivalently one constant eps) is fitted per cluster, exactly the
@@ -56,8 +55,8 @@ the start -- so the bug does not apply here.
 SELF-CONTAINED
 --------------
 Reads ONLY data/external_reference/xcop_profiles.txt (the full EIN3 profiles
-and per-cluster r_nei, extracted once with astropy.io.fits from
-hydrostatic_equilibrium_xcop/repo/data/einasto_mass_profiles/<c>/EIN3_mass.fits).
+and per-cluster r_nei, extracted once with astropy.io.fits from the X-COP Einasto
+mass profiles (Eckert et al. 2022)).
 No astropy or absolute paths at run time.  Writes outputs/xcop_rnei_nsig.txt.
 
 Reference: model_comparison.md (xcop repo, table column "n_sigma(r_nei)").

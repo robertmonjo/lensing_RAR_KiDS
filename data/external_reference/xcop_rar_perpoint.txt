@@ -1,10 +1,8 @@
 # X-COP per-point radial acceleration relation (RAR) dataset
 # Twelve X-COP galaxy clusters; Einasto (EIN3) hydrostatic mass profiles.
 #
-# Source repo : hydrostatic_equilibrium_xcop (Monjo 2025, ApJ 981, 195; DOI 10.3847/1538-4357/adb723)
-#   local     : 00_projectes/hydrostatic_equilibrium_xcop/repo
-# Data files  : data/einasto_mass_profiles/<cluster>/EIN3_mass.fits (Eckert et al. 2022, A&A 662, A123; X-COP)
-# Fit scripts : scripts/python/fig2_table2.py , scripts/python/hmg_common.py
+# Source : Monjo 2025, ApJ 981, 195 (DOI 10.3847/1538-4357/adb723), from the X-COP Einasto
+#          (EIN3) hydrostatic mass profiles (Eckert et al. 2022, A&A 662, A123; X-COP).
 #
 # Column definitions (exactly as used for the published chi^2 in fig2_table2.py):
 #   r_kpc         = R_REF                                              [kpc]
