@@ -50,7 +50,7 @@ Small committed text files (self-contained). Each `external_reference/*` file ca
 
 ## The model (`hmg_model.py`)
 
-- **HMG** — Hyperconical Modified Gravity (Monjo 2025, ApJ 982, 70; Monjo & Banik 2025, ApJ 992, 35). `gobs_hmg`: `ξ²ₛ = 1/s³ + v_H²/(12 v_N²)`; morphological deep limit via `hmg_pred_dl` (`x = s^{3/2}`, no spurious `1/√3`).
+- **HMG** — Hyperconical Modified Gravity (Monjo 2025, ApJ 982, 70; Monjo & Banik 2025, ApJ 992, 35). `gobs_hmg`: `ξ²ₛ = 1/s³ + v_H²/(12 v_N²)`; morphological deep limit via `hmg_pred_dl` (`x = s^{3/2}`).
 - **MOND** — McGaugh interpolation, `a₀ = 1.20×10⁻¹⁰ m/s²` fixed.
 - **CDM** — truncated NFW (Moster+2013 SHMR, Dutton & Macciò 2014 concentration) + a two-halo power law (Tinker+2010 bias), one global amplitude.
 
