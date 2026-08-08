@@ -1,2 +1,5 @@
 __pycache__/
 *.pyc
+# auxiliary/exploratory figures (not part of the paper; from make_fig_gs_fields / make_fig_xi_req)
+outputs/fig_gs_fields.*
+outputs/fig_xi_*
