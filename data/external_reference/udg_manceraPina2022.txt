@@ -1,0 +1,13 @@
+# Gas-rich ultra-diffuse galaxies (UDGs) -- outer rotation-curve point per galaxy.
+# Source: Mancera Pina et al. (2022) sample as used in the HMG UDG analysis
+#   (Monjo 2026, "hmg_udg_article"), fit_hmg_udg.py DATA list (6 galaxies).
+# v_obs and v_newton in km/s at r_sys (kpc); sig_plus/sig_minus = asymmetric 1-sigma
+#   on v_obs (km/s). log10_mbar = log10(M_bar/Msun).
+# g_bar = G M_bar / r_sys^2 ; g_obs = v_obs^2 / r_sys.
+# columns: agc  log10_mbar  r_kpc  v_obs  sig_plus  sig_minus  v_newton
+114905  9.21   8.02  23.0  4.0  6.0  29.0
+122966  9.21  10.80  37.0  5.0  6.0  25.0
+219533  9.36   9.78  37.0  6.0  5.0  32.0
+248945  9.05   8.55  27.0  3.0  3.0  24.0
+334315  9.25   8.49  25.0  5.0  5.0  33.0
+749290  9.17   8.47  26.0  6.0  6.0  27.0

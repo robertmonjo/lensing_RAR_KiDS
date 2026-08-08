@@ -1,0 +1,26 @@
+# Galaxy-galaxy weak-lensing rotation curves (circular velocities), Mistele et al. (2024)
+#   Table 1, as used in the HMG galaxy-galaxy WL analysis (Monjo 2025, "Weak_lensing_flat_rotation",
+#   repo/data/mistele_table1b.txt). 4 stacked mass bins x 5 radial points = 20 points.
+# g_bar = G M_bar / R^2 with M_bar = 10^log10Mb_Msun ; g_obs = vel_kms^2 / R.
+# sigma_v = sqrt(vel_err_std^2 + vel_err_sys^2) km/s ; R = 10^log10R_kpc kpc.
+# columns: bin  z  log10Mb_Msun  log10R_kpc  vel_kms  vel_err_std  vel_err_sys
+1  0.24  10.10  1.53  117.6  24.7   2.8
+1  0.24  10.10  1.66  115.2  23.9   1.2
+1  0.24  10.10  1.80  129.5  20.5   5.0
+1  0.24  10.10  1.93  134.2  19.3   2.2
+1  0.24  10.10  2.06  137.7  18.6   1.9
+2  0.30  10.66  1.53  114.3  33.1  18.1
+2  0.30  10.66  1.66  148.8  23.9   0.7
+2  0.30  10.66  1.80  161.4  21.0   4.8
+2  0.30  10.66  1.93  164.4  19.9   2.7
+2  0.30  10.66  2.06  196.0  16.3   0.7
+3  0.35  10.96  1.53  167.3  19.7   5.8
+3  0.35  10.96  1.66  207.9  14.9   6.2
+3  0.35  10.96  1.80  204.2  14.4   6.9
+3  0.35  10.96  1.93  202.3  14.1   4.9
+3  0.35  10.96  2.06  211.5  13.2   0.2
+4  0.39  11.29  1.53  234.6  13.7   0.6
+4  0.39  11.29  1.66  219.0  13.6   0.2
+4  0.39  11.29  1.80  266.0  10.6   2.8
+4  0.39  11.29  1.93  267.8  10.2   1.7
+4  0.39  11.29  2.06  242.3  11.0   4.5

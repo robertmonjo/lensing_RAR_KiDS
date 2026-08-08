@@ -1,0 +1,274 @@
+"""
+make_tables.py -- reproduce the two tables of the paper as CSV files.
+
+Outputs (in ./outputs):
+  tab_model_comparison.csv  -> Table `tab:model_comparison`
+  tab_mice_comparison.csv   -> Table `tab:mice_comparison`
+
+All HMG/MOND/CDM/const-g0 values are computed from ./data via hmg_model.
+MICE LambdaCDM chi2 values are literature values (Brouwer+2021 / Crocce+2015),
+flagged as such in the CSV (they are not re-derived here; see MICE_n-body/).
+"""
+import os
+import csv
+import numpy as np
+from scipy.optimize import minimize_scalar
+
+import hmg_model as h
+
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "outputs")
+os.makedirs(OUT, exist_ok=True)
+
+BINS, MSTAR, MBAR = h.BINS, h.MSTAR, h.MBAR   # MBAR = M_star (1+f_cold): baryonic g_bar
+A0_SI = h.A0_CODE * h.CODE_TO_SI
+
+def _ival(chi2_total, lo, hi, n=6000):
+    """1-sigma interval of a 1-parameter fit (Delta chi2_total = 1).
+    Returns (best_value, symmetric_error).  chi2_total(x) is the TOTAL chi^2."""
+    xs = np.linspace(lo, hi, n)
+    c = np.array([chi2_total(x) for x in xs])
+    ib = int(np.argmin(c)); xb = xs[ib]; thr = c.min() + 1.0
+    L = xs[:ib][c[:ib] <= thr]; R = xs[ib:][c[ib:] <= thr]
+    el = xb - L[0] if len(L) else 0.0
+    eh = R[-1] - xb if len(R) else 0.0
+    return xb, max(el, eh)
+
+
+# ── fitting helpers (mass-bin panels, full HMG formula) ───────────────────────
+def _chi2nu_bin(pred, b, k=0):
+    return h._chi2_arr(pred, b) / len(b)
+
+def fit_hmg_bin(b, ms, lo, hi):
+    f = lambda s: h._chi2_arr(h.gobs_hmg(h._r_kpc(b), ms, s), b)
+    r = minimize_scalar(f, bounds=(lo, hi), method="bounded")
+    return r.x, r.fun / len(b)
+
+def mond_bin(b, ms):
+    return h._chi2_arr(h.mond_gobs(h.gbar_si(b[:, 0], ms)), b) / len(b)
+
+def constg0_bin(b, ms):
+    gbar = h.gbar_si(b[:, 0], ms)
+    f = lambda lg0: h._chi2_arr(h.const_g0_pred(gbar, 10**lg0), b)
+    r = minimize_scalar(f, bounds=(-12.0, -8.0), method="bounded")
+    return r.fun / len(b)
+
+# ── CDM: global xi0 fit, then per-bin halo mass ───────────────────────────────
+MH_MOSTER = [h.mhalo_from_mstar(m) for m in MSTAR]
+
+def fit_xi0_global(mh_list):
+    f = lambda x0: sum(h._chi2_arr(h.gobs_cdm(h._r_kpc(b), m, mh, x0), b)
+                       for b, m, mh in zip(BINS, MBAR, mh_list))
+    r = minimize_scalar(f, bounds=(0.1, 30.0), method="bounded")
+    return r.x, r.fun / sum(len(b) for b in BINS)
+
+def cdm_bin(b, ms, mh0, xi0):
+    f = lambda lmh: h._chi2_arr(h.gobs_cdm(h._r_kpc(b), ms, 10**lmh, xi0), b)
+    r = minimize_scalar(f, bounds=(10.0, 14.0), method="bounded")
+    return r.fun / len(b)
+
+XI0, C2_CDM_GLOBAL = fit_xi0_global(MH_MOSTER)
+
+# ── build model_comparison rows ───────────────────────────────────────────────
+rows = []
+for i, (b, ms, mh0) in enumerate(zip(BINS, MBAR, MH_MOSTER)):   # ms = baryonic point mass
+    s_lo, c_lo = fit_hmg_bin(b, ms, 0.10, 0.99)
+    s_hi, c_hi = fit_hmg_bin(b, ms, 1.00, 12.0)
+    _, s_err = _ival(lambda s: h._chi2_arr(h.gobs_hmg(h._r_kpc(b), ms, s), b), 0.10, 0.99)
+    _, s_hi_err = _ival(lambda s: h._chi2_arr(h.gobs_hmg(h._r_kpc(b), ms, s), b), 1.00, 12.0)
+    g0, g0e  = _ival(lambda x: h._chi2_arr(h.const_g0_pred(h.gbar_si(b[:, 0], ms), x*A0_SI), b), 0.1, 8.0)
+    mh, mhe  = _ival(lambda x: h._chi2_arr(h.gobs_cdm(h._r_kpc(b), ms, x*1e12, XI0), b), 0.05, 10.0)
+    rows.append({
+        "subsample": f"Bin {i+1}", "Mstar": f"{MSTAR[i]:.1e}",
+        "s_best": round(s_lo, 3), "s_err": round(s_err, 3), "chi2nu_lo": round(c_lo, 2),
+        "s_hi": round(s_hi, 3), "s_hi_err": round(s_hi_err, 3), "chi2nu_hi": round(c_hi, 2),
+        "g0_a0": round(g0, 2), "g0_a0_err": round(g0e, 2), "const_g0_chi2nu": round(constg0_bin(b, ms), 2),
+        "MOND": round(mond_bin(b, ms), 2),
+        "Mh_1e12": round(mh, 2), "Mh_1e12_err": round(mhe, 2), "CDM": round(cdm_bin(b, ms, mh0, XI0), 2),
+    })
+
+# Global (all 60 points)
+def fit_hmg_global(lo, hi):
+    f = lambda s: sum(h._chi2_arr(h.gobs_hmg(h._r_kpc(b), m, s), b)
+                      for b, m in zip(BINS, MBAR))
+    r = minimize_scalar(f, bounds=(lo, hi), method="bounded")
+    return r.x, r.fun / sum(len(b) for b in BINS)
+
+def mond_global():
+    return sum(h._chi2_arr(h.mond_gobs(h.gbar_si(b[:, 0], m)), b)
+               for b, m in zip(BINS, MBAR)) / sum(len(b) for b in BINS)
+
+def constg0_global():
+    def f(lg0):
+        return sum(h._chi2_arr(h.const_g0_pred(h.gbar_si(b[:, 0], m), 10**lg0), b)
+                   for b, m in zip(BINS, MBAR))
+    r = minimize_scalar(f, bounds=(-12.0, -8.0), method="bounded")
+    return r.fun / sum(len(b) for b in BINS)
+
+def mond_free_a0_global():
+    """MOND with a FREE acceleration a0 (McGaugh RAR nu), fitted globally on baryonic g_bar.
+    g_obs = g_bar / (1 - exp(-sqrt(g_bar/a0))).  Returns (a0 [m/s^2], chi2_nu)."""
+    def _mfree(gbar, a0):
+        return gbar / (1.0 - np.exp(-np.sqrt(gbar / a0)))
+    def f(la0):
+        a0 = 10 ** la0
+        return sum(h._chi2_arr(_mfree(h.gbar_si(b[:, 0], m), a0), b) for b, m in zip(BINS, MBAR))
+    r = minimize_scalar(f, bounds=(-11.0, -9.0), method="bounded")
+    return 10 ** r.x, r.fun / sum(len(b) for b in BINS)
+
+sG_lo, cG_lo = fit_hmg_global(0.10, 0.99)
+sG_hi, cG_hi = fit_hmg_global(1.00, 12.0)
+_, sG_err = _ival(lambda s: sum(h._chi2_arr(h.gobs_hmg(h._r_kpc(b), m, s), b)
+                                for b, m in zip(BINS, MBAR)), 0.10, 0.99)
+_, sG_hi_err = _ival(lambda s: sum(h._chi2_arr(h.gobs_hmg(h._r_kpc(b), m, s), b)
+                                   for b, m in zip(BINS, MBAR)), 1.00, 12.0)
+g0G, g0Ge = _ival(lambda x: sum(h._chi2_arr(h.const_g0_pred(h.gbar_si(b[:, 0], m), x*A0_SI), b)
+                                for b, m in zip(BINS, MBAR)), 0.1, 8.0)
+rows.append({
+    "subsample": "Global", "Mstar": "all",
+    "s_best": round(sG_lo, 3), "s_err": round(sG_err, 3), "chi2nu_lo": round(cG_lo, 2),
+    "s_hi": round(sG_hi, 3), "s_hi_err": round(sG_hi_err, 3), "chi2nu_hi": round(cG_hi, 2),
+    "g0_a0": round(g0G, 2), "g0_a0_err": round(g0Ge, 2), "const_g0_chi2nu": round(constg0_global(), 2),
+    "MOND": round(mond_global(), 2),
+    "Mh_1e12": f"xi0={XI0:.1f}", "Mh_1e12_err": "-", "CDM": round(C2_CDM_GLOBAL, 2),
+})
+
+# MOND with a free acceleration a0 (cited in the abstract/conclusions, not in Table 1):
+A0_MOND_FREE, C2_MOND_FREE = mond_free_a0_global()
+print(f"MOND (free a0), global: a0 = {A0_MOND_FREE:.3e} m/s^2 "
+      f"({A0_MOND_FREE/1.2e-10:.2f}x standard), chi2_nu = {C2_MOND_FREE:.2f}")
+
+# ── Morphological subsets (full xi^2 = 1/s^3 + v_H^2/12v_N^2, r from MICE) ──────
+import re as _re
+def _load_morph_r(key):
+    blocks = {}; cur = None
+    with open(os.path.join(h.DATA_DIR, "morph_gbar_r_mice.txt")) as fh:
+        for ln in fh:
+            m = _re.match(r"### (\w+)", ln)
+            if m:
+                cur = m.group(1); blocks[cur] = []; continue
+            if cur and ln[:1].isdigit():
+                a = ln.split()
+                if len(a) == 2:
+                    blocks[cur].append((float(a[0]), float(a[1])))
+    arr = np.array(blocks[key]); r = arr[:, 0] * h.MPC_TO_KPC; lgb = arr[:, 1]
+    o = np.argsort(lgb)
+    return lambda g: np.interp(np.log10(g), lgb[o], r[o])
+_MKEY = {"late": "LATE_sersic", "early": "EARLY_sersic",
+         "blue": "BLUE_color", "red": "RED_color"}
+_r_of = {k: _load_morph_r(v) for k, v in _MKEY.items()}
+
+def _gobs_full(gb, s, rk):
+    gc = gb / h.CODE_TO_SI; v2n = gc * rk; vh2 = (rk / h.T0)**2
+    xi2 = 1.0/s**3 + vh2/(12.0*v2n + 1e-60)
+    ge  = 2.0 * h.C_KMS / h.T0 * h._cos_over_gamma(xi2)
+    return np.sqrt(np.maximum(gc*(gc + ge), 0.0)) * h.CODE_TO_SI
+
+def fit_morph(gb, go, ge, key, lo, hi):
+    rk = _r_of[key](gb); sig = ge / (go * np.log(10))
+    c = lambda s: float(np.sum(((np.log10(go) - np.log10(_gobs_full(gb, s, rk))) / sig)**2)) / (len(gb) - 1)
+    r = minimize_scalar(c, bounds=(lo, hi), method="bounded"); return r.x, r.fun
+
+def mond_morph(gb, go, ge):
+    sig = ge / (go * np.log(10))
+    return float(np.sum(((np.log10(go) - np.log10(h.mond_gobs(gb))) / sig)**2)) / (len(gb) - 1)
+
+def constg0_morph(gb, go, ge):
+    sig = ge / (go * np.log(10))
+    ch  = lambda lg0: float(np.sum(((np.log10(go) - np.log10(h.const_g0_pred(gb, 10**lg0))) / sig)**2))
+    r   = minimize_scalar(ch, bounds=(-11.0, -8.0), method="bounded")
+    return ch(r.x) / (len(gb) - 1)
+
+# CDM for morphology: r from MICE map, baryonic mass = MICE median M_star + cold gas,
+# M_h fitted (xi0 = global XI0). f_cold matches the bins' Boselli-2014 gas correction.
+MSTAR_MORPH = {"late": 10**9.745, "early": 10**10.154, "blue": 10**9.610, "red": 10**9.888}
+MBAR_MORPH = {k: m * (1 + h.f_cold(m)) for k, m in MSTAR_MORPH.items()}
+def cdm_morph(gb, go, ge, key):
+    ms = MBAR_MORPH[key]; rk = _r_of[key](gb); sig = ge / (go * np.log(10))
+    def c2(lmh):
+        return float(np.sum(((np.log10(go) - np.log10(h.gobs_cdm(rk, ms, 10**lmh, XI0))) / sig)**2))
+    r = minimize_scalar(c2, bounds=(10.5, 13.5), method="bounded")
+    return c2(r.x) / (len(gb) - 1)
+
+for name, fn, key in [("Late-type (n<2.5)", "Sersicbin_1", "late"),
+                      ("Early-type (n>=2.5)", "Sersicbin_2", "early"),
+                      ("Blue (u-r)", "Colorbin_1", "blue"),
+                      ("Red (u-r)", "Colorbin_2", "red")]:
+    gb, go, ge = h.load_morph(f"Fig-8_RAR-KiDS-isolated_{fn}.txt")
+    s_lo, c_lo = fit_morph(gb, go, ge, key, 0.15, 0.999)
+    s_hi, c_hi = fit_morph(gb, go, ge, key, 1.001, 8.0)
+    rk = _r_of[key](gb); sig = ge / (go * np.log(10)); ms = MBAR_MORPH[key]
+    # 1-sigma error for BOTH basins (both s values are reported in Table 1)
+    _, s_err    = _ival(lambda s: float(np.sum(((np.log10(go) - np.log10(_gobs_full(gb, s, rk))) / sig)**2)), 0.15, 0.999)
+    _, s_hi_err = _ival(lambda s: float(np.sum(((np.log10(go) - np.log10(_gobs_full(gb, s, rk))) / sig)**2)), 1.001, 8.0)
+    g0, g0e  = _ival(lambda x: float(np.sum(((np.log10(go) - np.log10(h.const_g0_pred(gb, x*A0_SI))) / sig)**2)), 0.1, 8.0)
+    mh, mhe  = _ival(lambda x: float(np.sum(((np.log10(go) - np.log10(h.gobs_cdm(rk, ms, x*1e12, XI0))) / sig)**2)), 0.05, 10.0)
+    rows.append({
+        "subsample": name, "Mstar": "-",
+        "s_best": round(s_lo, 3), "s_err": round(s_err, 3), "chi2nu_lo": round(c_lo, 2),
+        "s_hi": round(s_hi, 3), "s_hi_err": round(s_hi_err, 3), "chi2nu_hi": round(c_hi, 2),
+        "g0_a0": round(g0, 2), "g0_a0_err": round(g0e, 2), "const_g0_chi2nu": round(constg0_morph(gb, go, ge), 2),
+        "MOND": round(mond_morph(gb, go, ge), 2),
+        "Mh_1e12": round(mh, 2), "Mh_1e12_err": round(mhe, 2), "CDM": round(cdm_morph(gb, go, ge, key), 2),
+    })
+
+# write model_comparison.csv (full Table 1: fitted values + 1-sigma errors)
+cols = ["subsample", "Mstar",
+        "s_best", "s_err", "chi2nu_lo", "s_hi", "s_hi_err", "chi2nu_hi",
+        "g0_a0", "g0_a0_err", "const_g0_chi2nu",
+        "MOND",
+        "Mh_1e12", "Mh_1e12_err", "CDM"]
+with open(os.path.join(OUT, "tab_model_comparison.csv"), "w", newline="") as fh:
+    w = csv.DictWriter(fh, fieldnames=cols); w.writeheader(); w.writerows(rows)
+print("Wrote tab_model_comparison.csv")
+for r in rows:
+    print(f"  {r['subsample']:20s} s={r['s_best']}({r['s_err']}) X2lo={r['chi2nu_lo']} X2hi={r['chi2nu_hi']} | "
+          f"g0/a0={r['g0_a0']}({r['g0_a0_err']}) X2={r['const_g0_chi2nu']} | MOND={r['MOND']} | "
+          f"Mh={r['Mh_1e12']}({r['Mh_1e12_err']}) CDM={r['CDM']}")
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Table 2: MICE comparison (outer-radii subset r > 0.164 Mpc = last 10 pts/bin)
+# ══════════════════════════════════════════════════════════════════════════════
+OUTER = slice(5, 15)   # rows with r >= 0.164 Mpc (10 points per bin)
+
+def fit_s_subset(bin_indices):
+    bl = [BINS[i] for i in bin_indices]; ml = [MBAR[i] for i in bin_indices]
+    f = lambda s: sum(h._chi2_arr(h.gobs_hmg(h._r_kpc(b[OUTER]), m, s), b[OUTER])
+                      for b, m in zip(bl, ml))
+    r = minimize_scalar(f, bounds=(0.10, 0.99), method="bounded")
+    N = sum(len(b[OUTER]) for b in bl)
+    return r.x, r.fun, N
+
+def perbin_s(bin_indices):
+    tot = 0.0; N = 0; svals = {}
+    for i in bin_indices:
+        b, m = BINS[i], MBAR[i]
+        f = lambda s: h._chi2_arr(h.gobs_hmg(h._r_kpc(b[OUTER]), m, s), b[OUTER])
+        r = minimize_scalar(f, bounds=(0.10, 0.99), method="bounded")
+        tot += r.fun; N += len(b[OUTER]); svals[i] = r.x
+    return tot, N, svals
+
+s_sub, chi2_sub, N_sub = fit_s_subset([1, 2, 3])          # bins 2-4 global s
+chi2_pb234, N_pb234, sv234 = perbin_s([1, 2, 3])          # bins 2-4 per-bin
+chi2_pb1234, N_pb1234, sv1234 = perbin_s([0, 1, 2, 3])    # bins 1-4 per-bin
+
+mice_rows = [
+    # single fitted s -> 1 free param; paper reports chi2_nu = chi2/(N-1)
+    {"model": f"HMG (s={s_sub:.3f}, fitted to subset)", "N": N_sub,
+     "chi2": round(chi2_sub, 1), "chi2nu": round(chi2_sub / (N_sub - 1), 2), "source": "this work"},
+    {"model": "MICE LambdaCDM (Crocce+2015)", "N": 30,
+     "chi2": 49.7, "chi2nu": 1.66, "source": "literature (Brouwer+2021)"},
+    {"model": "HMG per-bin, bins 2-4", "N": N_pb234,
+     "chi2": round(chi2_pb234, 1), "chi2nu": round(chi2_pb234 / N_pb234, 2), "source": "this work"},
+    {"model": "HMG per-bin, bins 1-4", "N": N_pb1234,
+     "chi2": round(chi2_pb1234, 1), "chi2nu": round(chi2_pb1234 / N_pb1234, 2), "source": "this work"},
+    {"model": "MICE LambdaCDM, all bins (Crocce+2015)", "N": 33,
+     "chi2": 51.3, "chi2nu": 1.55, "source": "literature (Brouwer+2021)"},
+]
+with open(os.path.join(OUT, "tab_mice_comparison.csv"), "w", newline="") as fh:
+    w = csv.DictWriter(fh, fieldnames=["model", "N", "chi2", "chi2nu", "source"])
+    w.writeheader(); w.writerows(mice_rows)
+print("\nWrote tab_mice_comparison.csv")
+for r in mice_rows:
+    print(f"  {r['model']:42s} N={r['N']:3d} chi2={r['chi2']} chi2nu={r['chi2nu']} [{r['source']}]")
+print("\nPer-bin outer-radii s: " +
+      ", ".join(f"s{i+1}={sv1234[i]:.3f}" for i in range(4)))
