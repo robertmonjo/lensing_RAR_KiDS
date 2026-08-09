@@ -48,6 +48,10 @@ Figure and script names follow the paper numbering (Fig. 1 in the body; Fig. A.1
 
 Small committed text files (self-contained). Each `external_reference/*` file carries a provenance header. Sources: Brouwer et al. (2021, KiDS-1000), McGaugh (2007, SPARC), Mistele et al. (2024), Eckert et al. (2022, X-COP), Mancera Piña et al. (2022, UDGs), and the MICE ΛCDM mocks (produced by the separate `MICE_n-body` pipeline). The four-bin KiDS RAR and the MICE fallback band are hard-coded in `hmg_model.py` from the Brouwer+2021 published values.
 
+## Regenerating the MICE ΛCDM mocks (optional — not needed to reproduce the paper)
+
+The MICE ΛCDM products consumed above (`data/rar_band_b21_bin{1..4}.txt`, `data/morph_*_allbins.txt`, `data/morph_gbar_r_mice.txt`) are **committed**, so `python run_all.py` reproduces every figure and table with **no external download**. Regenerating those products from the N-body catalogue is optional and lives in [`MICE_n-body/`](MICE_n-body/): it needs a free CosmoHub account to download the MICE2 catalogue (~2 GB, not redistributable), then `bash MICE_n-body/scripts/run_photoz_pipeline.sh`. See [`MICE_n-body/README_pipeline.md`](MICE_n-body/README_pipeline.md).
+
 ## The model (`hmg_model.py`)
 
 - **HMG** — Hyperconical Modified Gravity (Monjo 2025, ApJ 982, 70; Monjo & Banik 2025, ApJ 992, 35). `gobs_hmg`: `ξ²ₛ = 1/s³ + v_H²/(12 v_N²)`; morphological deep limit via `hmg_pred_dl` (`x = s^{3/2}`).
