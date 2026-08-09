@@ -335,13 +335,13 @@ _abs = {'HIFLUGCS': (2.5, 0.85), 'X-COP': (3.2, 0.65)}      # cluster labels at 
 # labels for the OPEN (mirror) stars of the degenerate systems
 _lab_alt = {'SPARC': ('SPARC', (-9, -4), 'right'), 'Milky Way': ('Milky Way', (9, 2), 'left'),
             'gal-gal WL': ('gal--gal WL', (9, -3), 'left')}
-def _star(x, y, xe, ye, filled):
+def _star(x, y, xe, ye, filled, fc='#ffe14d', ec='#6e5200', erc='#8a6d00'):
     if filled:   # adopted branch: crisp, dark, thick edge
-        ax1.errorbar(x, y, xerr=xe, yerr=ye, fmt='*', color='#ffe14d', ms=18, mec='#6e5200',
-                     mew=1.6, ecolor='#8a6d00', elinewidth=1.1, capsize=3, zorder=9)
+        ax1.errorbar(x, y, xerr=xe, yerr=ye, fmt='*', color=fc, ms=18, mec=ec,
+                     mew=1.6, ecolor=erc, elinewidth=1.1, capsize=3, zorder=9)
     else:        # mirror branch: hollow, thin, soft edge
-        ax1.errorbar(x, y, xerr=xe, yerr=ye, fmt='*', mfc='none', mec='#c9a24a', mew=0.8,
-                     ms=18, ecolor='#a98f52', elinewidth=0.8, capsize=3, zorder=8)
+        ax1.errorbar(x, y, xerr=xe, yerr=ye, fmt='*', mfc='none', mec=ec, mew=0.8,
+                     ms=18, ecolor=erc, elinewidth=0.8, capsize=3, zorder=8)
 def _reflabel(nm, x, y, off, ha, alt=False):
     ax1.annotate(nm, (x, y), textcoords='offset points', xytext=off, fontsize=(7.0 if alt else 7.4),
                  color=('#a98f52' if alt else '#8a6d00'), style='italic', ha=ha, zorder=9,
@@ -388,6 +388,19 @@ for _fn in ("xcop_per_cluster.csv", "hiflugcs_per_cluster.csv"):
              alpha=0.6, zorder=6)                                    # filled = fitted s (crisp edge)
     ax1.plot(_cx, _co, marker='*', ls='', ms=5.8, mfc='none', mec='#c9a24a', mew=0.5,
              alpha=0.6, zorder=6)                                    # open = 1/s mirror (soft edge)
+# Gal-gal WL individual mass bins (Mistele 2024, 4 bins): all degenerate (Delta chi2 < 0.3).
+# Both branches drawn FILLED (same gold star, alpha=0.6) to signal degeneracy.
+_gp = os.path.join(_refdir, "galgal_per_bin.csv")
+if os.path.exists(_gp):
+    _gd = list(_csv.DictReader(open(_gp)))
+    _gx = [float(_g['r_eq']) for _g in _gd]
+    _gf = [float(_g['s_fill']) for _g in _gd]
+    _go = [float(_g['s_open']) for _g in _gd]
+    ax1.plot(_gx, _gf, marker='*', ls='', ms=6.0, color='#ffe14d', mec='#6e5200', mew=0.8,
+             alpha=0.65, zorder=6)
+    ax1.plot(_gx, _go, marker='*', ls='', ms=6.0, color='#ffe14d', mec='#6e5200', mew=0.8,
+             alpha=0.65, zorder=6)
+
 # Gas-rich UDGs (Monjo 2026udg): global HMG fit prefers s<1 (s=0.01, chi2=8.6) over the
 # s->inf branch (chi2=17.1) -> bottom with a downward arrow (s < axis floor).
 _udg_y = s_min_ax*1.28

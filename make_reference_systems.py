@@ -229,39 +229,65 @@ rows.append(_row("Milky Way", _mw_req, _mw_req, _mw_req, 0.50, 0.43, 0.59, 152, 
                  degenerate=True))   # deep (v_H/v_N=0): the two branches are exactly degenerate
 
 # ── Galaxy-galaxy WL (Mistele 2024, 4 mass bins x 5 radii): fit BOTH branches ─────
-# Here the Hubble term is significant (v_H/v_N ~ 1.2), so the s>1 (adopted) and s<1 (mirror)
-# branches are NOT reciprocal (s_mirror != 1/s) -- both are fitted explicitly.
-_gw_r, _gw_gb, _gw_go, _gw_sl = [], [], [], []
+# Strategy: fit per bin first; aggregate star = median of per-bin distribution,
+# error bars = 16th–84th percentile dispersion (same convention as SPARC/clusters).
+# Degeneracy test uses the all-20-points pooled chi2 (Wilks criterion).
+_bins_gg = {}
 for ln in open(os.path.join(DATA, "mistele_gg_wl.txt")):
     if ln.startswith("#") or not ln.strip():
         continue
     p = ln.split()
+    bk = int(p[0])
     _mb = 10**float(p[2]); _R = 10**float(p[3]); _v = float(p[4])
     _sv = np.sqrt(float(p[5])**2 + float(p[6])**2)
-    _gw_r.append(_R); _gw_gb.append(G_CODE*_mb/_R**2); _gw_go.append(_v**2/_R)
-    _gw_sl.append(2.0*_sv/(_v*np.log(10.0)))           # log-space 1sigma on g_obs
+    _bins_gg.setdefault(bk, []).append((_mb, _R, _v, _sv))
+
+_gw_req_arr, _gw_sf_arr, _gw_so_arr = [], [], []
+with open(os.path.join(OUT, "galgal_per_bin.csv"), "w", newline="") as fh:
+    ww = csv.writer(fh); ww.writerow(["r_eq", "s_fill", "s_open"])
+    for bk in sorted(_bins_gg):
+        pts = _bins_gg[bk]
+        _mb0 = pts[0][0]
+        _Rb  = np.array([q[1] for q in pts])
+        _vb  = np.array([q[2] for q in pts])
+        _svb = np.array([q[3] for q in pts])
+        _gbbar = G_CODE * _mb0 / _Rb**2
+        _gbobs = _vb**2 / _Rb
+        _slog  = 2.0 * _svb / (_vb * np.log(10.0))
+        _req_b = r_newton_kpc(_mb0) / 1000.0
+        _shi_b, _chi_hi_b = _fit_s(_Rb, _gbbar, _gbobs, err=_slog, s_range=(1.0, 12.0))
+        _slo_b, _chi_lo_b = _fit_s(_Rb, _gbbar, _gbobs, err=_slog, s_range=(0.15, 1.0))
+        _sf_b = _shi_b if _chi_hi_b <= _chi_lo_b else _slo_b
+        _so_b = _slo_b if _chi_hi_b <= _chi_lo_b else _shi_b
+        ww.writerow([round(_req_b, 4), round(_sf_b, 3), round(_so_b, 3)])
+        _gw_req_arr.append(_req_b); _gw_sf_arr.append(_sf_b); _gw_so_arr.append(_so_b)
+        print(f"    [gg-WL bin {bk}] r_eq={_req_b:.3f} Mpc  s_fill={_sf_b:.3f}  "
+              f"s_open={_so_b:.3f}  Dchi2={abs(_chi_hi_b-_chi_lo_b):.2f}")
+print("Wrote galgal_per_bin.csv")
+_gw_req_arr = np.array(_gw_req_arr)
+_gw_sf_arr  = np.array(_gw_sf_arr)
+_gw_so_arr  = np.array(_gw_so_arr)
+_gwr_m, _gwr_l, _gwr_h = pct(_gw_req_arr)
+_gwf_m, _gwf_l, _gwf_h = pct(_gw_sf_arr)   # s>1 branch
+_gwo_m, _gwo_l, _gwo_h = pct(_gw_so_arr)   # s<1 branch
+
+# Degeneracy: all-20-points pooled chi2
+_gw_r = []; _gw_gb = []; _gw_go = []; _gw_sl = []
+for bk_pts in _bins_gg.values():
+    for (_mb, _R, _v, _sv) in bk_pts:
+        _gw_r.append(_R); _gw_gb.append(G_CODE*_mb/_R**2); _gw_go.append(_v**2/_R)
+        _gw_sl.append(2.0*_sv/(_v*np.log(10.0)))
 _gw_r = np.array(_gw_r); _gw_gb = np.array(_gw_gb); _gw_go = np.array(_gw_go); _gw_sl = np.array(_gw_sl)
-_gw_shi, _gw_chi_hi = _fit_s(_gw_r, _gw_gb, _gw_go, err=_gw_sl, s_range=(1.0, 12.0))  # s>1 (for deg. test)
-_gw_slo, _gw_chi_lo = _fit_s(_gw_r, _gw_gb, _gw_go, err=_gw_sl, s_range=(0.15, 1.0))  # s<1 (mirror)
-_gw_req = r_newton_kpc(1.0e11) / 1000.0
+_, _gw_chi_hi = _fit_s(_gw_r, _gw_gb, _gw_go, err=_gw_sl, s_range=(1.0, 12.0))
+_, _gw_chi_lo = _fit_s(_gw_r, _gw_gb, _gw_go, err=_gw_sl, s_range=(0.15, 1.0))
 _gw_deg = abs(_gw_chi_hi - _gw_chi_lo) < DELTA_DEG
-# Adopted s>1 = the PUBLISHED value (Monjo 2025, ApJ 982): s = r_nei/r_sys = 1/e0 from the pooled
-# epsilon-HMG fit to Mistele's circular velocities (eps0inv = 2.5378 [-0.1791,+0.2086],
-# chi2=17.96, Delta chi2=2.25 / 1.5 sigma)
-# -> 2.54^{+0.21}_{-0.18}.  NOT re-fit here; kept identical to Table A.1 and the source paper.
-# Mirror s<1 = fitted here; its error bar is the 1.5 sigma (Delta chi2=2.25) profile interval (same
-# criterion as the paper), replacing the earlier hand-set +/-10%.
-_gw_hub = _gw_r / (12.0 * _gw_gb * T0**2)
-_gw_sg  = np.linspace(0.15, 1.0, 3000)
-_gw_chi = np.array([np.sum((1.0/_gw_sl**2) * (np.log10(_gw_go) - np.log10(
-    np.sqrt(_gw_gb*(_gw_gb + 2.0*C_KMS/T0*_q(np.sqrt(1.0/s**3 + _gw_hub))))))**2) for s in _gw_sg])
-_gw_ok  = _gw_chi <= _gw_chi.min() + 2.25
-_gw_mlo, _gw_mhi = float(_gw_sg[_gw_ok][0]), float(_gw_sg[_gw_ok][-1])
-rows.append(_row("gal-gal WL", _gw_req, _gw_req, _gw_req, 2.54, 2.36, 2.75, 20,
-                 _gw_slo, _gw_mlo, _gw_mhi, degenerate=_gw_deg))
-print(f"  [gal-gal WL] adopted s>1=2.54 [2.36,2.75] (paper ApJ982 r_nei/r_sys, Dchi2=2.25)  "
-      f"mirror s<1={_gw_slo:.2f} [{_gw_mlo:.2f},{_gw_mhi:.2f}] (fit, Dchi2=2.25)  "
-      f"Delta chi2_branch={abs(_gw_chi_hi-_gw_chi_lo):.2f} -> "
+
+rows.append(_row("gal-gal WL", _gwr_m, _gwr_l, _gwr_h, _gwf_m, _gwf_l, _gwf_h, 20,
+                 _gwo_m, _gwo_l, _gwo_h, degenerate=_gw_deg))
+print(f"  [gal-gal WL] r_eq={_gwr_m:.3f} [{_gwr_l:.3f},{_gwr_h:.3f}] Mpc  "
+      f"s>1={_gwf_m:.3f} [{_gwf_l:.3f},{_gwf_h:.3f}]  "
+      f"s<1={_gwo_m:.3f} [{_gwo_l:.3f},{_gwo_h:.3f}]  "
+      f"Dchi2(pooled)={abs(_gw_chi_hi-_gw_chi_lo):.2f} -> "
       f"{'degenerate' if _gw_deg else 'distinguishable'}")
 
 os.makedirs(OUT, exist_ok=True)
