@@ -317,6 +317,18 @@ r_hi = np.concatenate([[R_CROSS], r_line[r_line > R_CROSS]])
 ax1.plot(r_lo, K * r_lo**SLOPE,        color='#333333', lw=1.6, ls=(0, (6, 3)), zorder=3)
 ax1.plot(r_lo, (1.0/K) * r_lo**-SLOPE, color='#333333', lw=1.6, ls=(0, (6, 3)), zorder=3)
 ax1.plot(r_hi, np.ones_like(r_hi),     color='#333333', lw=1.8, ls=(0, (6, 3)), zorder=3)
+# Thick, faint grey guides at the xi^2 crossover s_eq = 12^{1/3} (where the neighbourhood term
+# 1/s^3 equals the Hubble term at r = r_eq, i.e. v_H = v_N) and its s <-> 1/s mirror 12^{-1/3}.
+# Drawn above the g_s/a0 field (zorder 0) but below the reference lines and data stars, each with
+# a small left-edge label.
+_S_CROSS = 12.0 ** (1.0 / 3.0)
+_guides = [(_S_CROSS,       r'$v_H\!=\!v_N$ with $s>1$ ($s\!\approx\!2.29$)'),
+           (1.0 / _S_CROSS, r'$v_H\!=\!v_N$ with $s<1$ ($s\!\approx\!0.44$)')]
+for _sc, _txt in _guides:
+    ax1.axhline(_sc, color='0.40', lw=7, alpha=0.25, zorder=1, solid_capstyle='round')
+    ax1.text(0.053, _sc * 1.03, _txt, ha='left', va='bottom', fontsize=6.3,
+             color='0.25', fontstyle='italic', zorder=6,
+             path_effects=[pe.withStroke(linewidth=2.4, foreground='white')])
 _lbl_eff = [pe.withStroke(linewidth=2.6, foreground='white')]
 _rlbl = 0.56                                        # label anchor at r_eq ~ 0.56 Mpc
 ax1.text(_rlbl, K*_rlbl**SLOPE, r'$s_\mathrm{low}$', color='#222', fontsize=10, rotation=43,
