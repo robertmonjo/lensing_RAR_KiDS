@@ -326,7 +326,7 @@ _guides = [(_S_CROSS,       r'$v_H\!=\!v_N$ with $s>1$ ($s\!\approx\!2.29$)'),
            (1.0 / _S_CROSS, r'$v_H\!=\!v_N$ with $s<1$ ($s\!\approx\!0.44$)')]
 for _sc, _txt in _guides:
     ax1.axhline(_sc, color='0.40', lw=7, alpha=0.25, zorder=1, solid_capstyle='round')
-    ax1.text(0.053, _sc * 1.03, _txt, ha='left', va='bottom', fontsize=6.3,
+    ax1.text(0.053, _sc, _txt, ha='left', va='center', fontsize=6.3,
              color='0.25', fontstyle='italic', zorder=6,
              path_effects=[pe.withStroke(linewidth=2.4, foreground='white')])
 _lbl_eff = [pe.withStroke(linewidth=2.6, foreground='white')]
