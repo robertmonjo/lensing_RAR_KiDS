@@ -24,7 +24,7 @@ That single command produces every figure (PNG + PDF) and every CSV/TeX table in
 | `make_figA1_regimes.py` | `figA1_regimes.{png,pdf}` | **Fig. A.1** |
 | `make_reference_systems.py` | `reference_systems.csv` (+ per-object CSVs) | gold stars of Fig. A.2 |
 | `make_figA2_landscape.py` | `figA2_landscape.{png,pdf}` | **Fig. A.2** |
-| `make_tables.py` | `tab_model_comparison.csv`, `tab_mice_comparison.csv` | model-comparison + MICE tables |
+| `make_tables.py` | `tab_model_comparison.csv`, `tab_mice_comparison.csv` | **Table 1** (model comparison) + **Table 2** (MICE) |
 | `xcop_rnei_nsig.py` | `xcop_rnei_nsig.txt` | X-COP n_σ for Table A.1 |
 | `make_tab_regimes.py` | `tab_regimes.csv`, `tab_regimes_body.tex` | **Table A.1** |
 
@@ -36,11 +36,11 @@ Figure and script names follow the paper numbering (Fig. 1 in the body; Fig. A.1
 
 ### Reference systems (Fig. A.2 gold stars)
 
-`make_reference_systems.py` fits **both** the `s < 1` (neighbourhood) and `s > 1` (Hubble) HMG branches for each external system. The mirror branch is **fitted**, never assumed = 1/s (that equality holds only in the deep limit; e.g. gal-gal WL `s = 2.54` → mirror `0.36`, not `0.39`):
+`make_reference_systems.py` fits **both** the `s < 1` (neighbourhood) and `s > 1` (Hubble) HMG branches for each external system. The mirror branch is **fitted**, never assumed = 1/s (that equality holds only in the deep limit; e.g. gal-gal WL `s = 2.76` → mirror `0.37`, not `1/2.76 = 0.36`):
 
 - **SPARC** — 50 of 61 McGaugh (2007) galaxies (≥ 4 points)
 - **HIFLUGCS** — clusters (Monjo & Banik 2025)
-- **X-COP** — clusters (Eckert 2022)
+- **X-COP** — clusters (Eckert 2022); fitted with the 2-parameter (s, r_nei) joint model (Model C), the only system needing two parameters (its extended gas profile makes a single scalar s inadequate)
 - **gal-gal WL** — Mistele (2024) stacked circular velocities
 - **Milky Way** — two-branch fit (radial + vertical constraints)
 
@@ -61,7 +61,7 @@ The MICE ΛCDM products consumed above (`data/rar_band_b21_bin{1..4}.txt`, `data
 ## Notes
 
 - This pipeline is the source of truth for the primary HMG/MOND/CDM χ² values (they match the manuscript). The MICE ΛCDM χ² entries in `tab_mice_comparison.csv` are literature values (flagged in the `source` column), not re-derived here.
-- Table A.1's last column `n_σ = √(reduced χ²)` of the HMG prediction vs `g_obs`, computed uniformly in log-acceleration space at each row's `s`. Single stacked curves (KiDS, MW, gal-gal WL, UDGs) are fit jointly; multi-object samples (SPARC, HIFLUGCS, X-COP) are fit per object and the median is reported.
+- Table A.1's last column is the reduced χ² (`χ²_ν = χ²/(N−k)`) of the HMG prediction vs `g_obs`, computed in log-acceleration space with the asymmetric 16th–84th-percentile weights (`σ⁺` if the model over-predicts, `σ⁻` if it under-predicts) at each row's `s`. Single stacked curves (KiDS, MW, gal-gal WL, UDGs) are fit jointly; multi-object samples (SPARC, HIFLUGCS, X-COP) are fit per object and the median is reported. The Milky Way `χ²_ν` is quoted from the vertical-gravity analysis (nbar1 = MI, the best reconstruction; degenerate between the `s ≈ 0.50` and `s ≈ 2.00` branches).
 - `make_fig_gs_fields.py` and `make_fig_xi_req.py` are **auxiliary/exploratory** diagnostics — not part of the paper and not in `run_all.py`. Run them by hand if wanted.
 
 ## License

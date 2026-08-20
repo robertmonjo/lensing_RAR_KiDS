@@ -1,6 +1,6 @@
 model,N,chi2,chi2nu,source
-"HMG (s=0.486, fitted to subset)",30,45.3,1.56,this work
+"HMG (s=0.486, fitted to subset)",30,45.4,1.56,this work
 MICE LambdaCDM (Crocce+2015),30,49.7,1.66,literature (Brouwer+2021)
-"HMG per-bin, bins 2-4",30,30.1,1.0,this work
-"HMG per-bin, bins 1-4",40,34.3,0.86,this work
+"HMG per-bin, bins 2-4",30,29.7,1.1,this work
+"HMG per-bin, bins 1-4",40,33.5,0.93,this work
 "MICE LambdaCDM, all bins (Crocce+2015)",33,51.3,1.55,literature (Brouwer+2021)

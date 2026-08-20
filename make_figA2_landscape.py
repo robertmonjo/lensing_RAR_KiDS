@@ -63,19 +63,18 @@ def hmg_gobs(r_kpc, ms, s):
     gn  = v2n / r
     return np.sqrt(gn * (gn + 2*C_KMS/T0*q)) * CODE_TO_SI
 
-def _log_sigma(b):
-    return (np.log10(b[:, 3]) - np.log10(b[:, 2])) / 2.0
-
 def chi2_all(s):
     tot = 0.0; n = 0
     for b, ms in zip(BINS, MBAR):
-        r_kpc = b[:, 0] * MPC_TO_KPC
-        g_d   = b[:, 1]
-        g_h   = hmg_gobs(r_kpc, ms, s)
-        sig   = _log_sigma(b)
-        tot  += np.sum(((np.log10(g_d) - np.log10(g_h)) / sig)**2)
-        n    += len(b)
-    return float(tot) / n
+        r_kpc  = b[:, 0] * MPC_TO_KPC
+        g_d    = b[:, 1]
+        g_h    = hmg_gobs(r_kpc, ms, s)
+        sig_up = np.log10(b[:, 3]) - np.log10(g_d)
+        sig_dn = np.log10(g_d) - np.log10(b[:, 2])
+        sig    = np.where(g_h >= g_d, sig_up, sig_dn)
+        tot   += np.sum(((np.log10(g_d) - np.log10(g_h)) / sig)**2)
+        n     += len(b)
+    return float(tot) / (n - 1)          # chi2_nu = chi2/(N-k), k=1 (fitted s)
 
 # ── Morphology-specific r(g_bar) from MICE (breaks deep-limit s<->1/s symmetry) ─
 import re as _re
@@ -128,12 +127,14 @@ _gb_blue,  _go_blue,  _ge_blue  = _load_morph("Fig-8_RAR-KiDS-isolated_Colorbin_
 _gb_red,   _go_red,   _ge_red   = _load_morph("Fig-8_RAR-KiDS-isolated_Colorbin_2.txt")
 
 def chi2_bin(s, ib):
-    b = BINS[ib]; ms = MBAR[ib]
-    r_kpc = b[:, 0] * MPC_TO_KPC
-    g_d   = b[:, 1]
-    g_h   = hmg_gobs(r_kpc, ms, s)
-    sig   = _log_sigma(b)
-    return float(np.sum(((np.log10(g_d) - np.log10(g_h)) / sig)**2)) / len(b)
+    b      = BINS[ib]; ms = MBAR[ib]
+    r_kpc  = b[:, 0] * MPC_TO_KPC
+    g_d    = b[:, 1]
+    g_h    = hmg_gobs(r_kpc, ms, s)
+    sig_up = np.log10(b[:, 3]) - np.log10(g_d)
+    sig_dn = np.log10(g_d) - np.log10(b[:, 2])
+    sig    = np.where(g_h >= g_d, sig_up, sig_dn)
+    return float(np.sum(((np.log10(g_d) - np.log10(g_h)) / sig)**2)) / (len(b) - 1)   # N-k, k=1
 
 # ── Cluster chi2_nu(s) profiles (median over clusters): full xi_s^2, log-g space ─
 def _chi2_cluster_one(rk, gbar, gobs, gerr, s):
@@ -496,8 +497,8 @@ elif SHADE_MODE == 'multifield':          # union (max) of 3 g_s fields: equal b
                  color='#333', fontsize=7.4, ha='center', va='top', fontstyle='italic', zorder=4,
                  path_effects=[pe.withStroke(linewidth=2.4, foreground='white')])
     from matplotlib.colors import LinearSegmentedColormap as _LSC
-    import matplotlib.cm as _mcm
-    _softmap = _LSC.from_list('YlOrBr_soft', _mcm.get_cmap('YlOrBr')(np.linspace(0.0, 0.72, 256)))
+    import matplotlib as _mpl
+    _softmap = _LSC.from_list('YlOrBr_soft', _mpl.colormaps['YlOrBr'](np.linspace(0.0, 0.72, 256)))
     _GS_MAX = float(_gmax.max())                       # theoretical g_s^max/a0 (~5.5): cap the scale
     _pcm = ax1.pcolormesh(_RE, _SG, _gmax, cmap=_softmap, alpha=0.55, zorder=0,
                           shading='gouraud', vmin=0.0, vmax=_GS_MAX)

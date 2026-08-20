@@ -1,0 +1,14 @@
+# Milky Way HMG reduced chi2 -- nbar1 = MI (minimal baryonic reconstruction; the best-fit case).
+# N = 196 constraints (152 radial rotation + 44 Wang+2026 vertical), k = 1 free parameter,
+# dof = N - k = 195.  MC100 ensemble median (p50), common scalar-s HMG fit.
+# Source: Monjo (2026), Milky Way HMG vertical-gravity analysis, Table 3 (nbar1 = MI column):
+#   chi2nu = 2.63 (+0.50/-0.26).  Band-Consistent (BC) methodology.
+#   Reproduced independently 2026-08-14 (release_final/scripts/verify_s_chi2_all_nbars.py -> 2.634).
+# The MW fit is degenerate between two HMG branches, both with chi2nu ~= 2.63:
+#   s < 1 (neighbourhood) at s ~= 0.50 and s > 1 (Hubble) at s ~= 2.00
+#   (Table 3: "two solutions s = 0.50 and s = 2.00").
+# Combining radial rotation AND vertical constraints lies outside the pure rotation-RAR framework
+# used for the other systems, so its n_sigma is taken as sqrt(chi2nu) from this published reduced
+# chi2 rather than recomputed from the radial RAR alone.
+# chi2nu
+2.63

@@ -316,12 +316,13 @@ def gobs_cdm(r_kpc_arr, ms, mh, xi0):
 def gbar_si(r_mpc, ms):
     return G_SI * ms * MSUN_KG / (r_mpc * MPC_M)**2
 
-def _logsig(b):
-    return (np.log10(b[:,3]) - np.log10(b[:,2])) / 2.0
-
 def _chi2_arr(pred, bdata):
-    sig = _logsig(bdata)
-    return float(np.sum(((np.log10(bdata[:,1]) - np.log10(pred)) / sig)**2))
+    """Asymmetric chi2: sigma_up if pred>=gobs, sigma_dn if pred<gobs."""
+    gobs = bdata[:, 1]
+    sig_up = np.log10(bdata[:, 3]) - np.log10(gobs)
+    sig_dn = np.log10(gobs) - np.log10(bdata[:, 2])
+    sig = np.where(pred >= gobs, sig_up, sig_dn)
+    return float(np.sum(((np.log10(gobs) - np.log10(pred)) / sig)**2))
 
 def _r_kpc(bdata):
     return bdata[:,0] * MPC_TO_KPC
@@ -343,7 +344,7 @@ def _fit_hmg():
     rA = minimize_scalar(c2, bounds=(0.10, 0.99), method="bounded")
     rB = minimize_scalar(c2, bounds=(1.0, 12.0),  method="bounded")
     r  = rA if rA.fun <= rB.fun else rB
-    return r.x, r.fun/ndof
+    return r.x, r.fun/(ndof - 1)          # chi2_nu = chi2/(N-k), k=1 (fitted s)
 
 # CDM halo model: 1 free param xi0 (two-halo amplitude), M_h from Moster+13
 def _fit_cdm_global(mh_list, lo=0.1, hi=30.0):
@@ -352,7 +353,7 @@ def _fit_cdm_global(mh_list, lo=0.1, hi=30.0):
                    for b, m, mh in zip(BINS, MBAR, mh_list))
     ndof = sum(len(b) for b in BINS)
     r    = minimize_scalar(c2, bounds=(lo, hi), method="bounded")
-    return r.x, r.fun/ndof
+    return r.x, r.fun/(ndof - 1)          # chi2_nu = chi2/(N-k), k=1 (fitted xi0)
 
 # CDM per-bin: M_h free per bin (xi0 from global), one-halo only (xi0=0) as option
 def _fit_cdm_perbin(xi0_global, mh_list):
@@ -364,7 +365,7 @@ def _fit_cdm_perbin(xi0_global, mh_list):
             lambda lmh, bd=b, ms=m, rk_=rk: _chi2_arr(
                 gobs_cdm(rk_, ms, 10**lmh, xi0_global), bd),
             bounds=(10.0, 14.0), method="bounded")
-        results.append((10**res.x, res.fun/len(b)))
+        results.append((10**res.x, res.fun/(len(b) - 1)))   # k=1 (fitted M_h)
     return results
 
 # HMG per-bin
@@ -377,7 +378,7 @@ def _fit_hmg_perbin():
         rB = minimize_scalar(lambda s,bd=b,ms=m,r=rk: _chi2_arr(gobs_hmg(r,ms,s),bd),
                              bounds=(1.0, 12.0),  method="bounded")
         rv = rA if rA.fun <= rB.fun else rB
-        res.append((rv.x, rv.fun/len(b)))
+        res.append((rv.x, rv.fun/(len(b) - 1)))   # k=1 (fitted s)
     return res
 
 # ══════════════════════════════════════════════════════════════════════════════

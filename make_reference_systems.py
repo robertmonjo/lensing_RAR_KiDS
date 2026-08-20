@@ -84,15 +84,13 @@ for nm, pts in gal.items():
     if m.sum() < 4:            # need >=4 valid points for a single-s fit -> drops 11/61
         continue
     gbar = Vbar2[m] / R[m]; gobs = Vo[m]**2 / R[m]  # (km/s)^2/kpc
-    s_hi, c_hi = _fit_s(R[m], gbar, gobs, s_range=(1.0, 12.0))    # Hubble branch  s>1
-    s_lo, c_lo = _fit_s(R[m], gbar, gobs, s_range=(0.15, 1.0))    # mirror branch  s<1
+    _sv = np.sqrt((0.043*Vo[m])**2 + 4.6**2); _sl = 2*_sv/(Vo[m]*np.log(10.0))   # Lelli+2016 log-g sigma
+    s_hi, c_hi = _fit_s(R[m], gbar, gobs, err=_sl, s_range=(1.0, 12.0))    # Hubble branch  s>1 (WEIGHTED, as clusters/gal-gal)
+    s_lo, c_lo = _fit_s(R[m], gbar, gobs, err=_sl, s_range=(0.15, 1.0))    # mirror branch  s<1 (WEIGHTED)
     im = int(np.argmax(R[m])); Mbar = gbar[im] * R[m][im]**2 / G_CODE
     sparc_hi.append(s_hi); sparc_lo.append(s_lo); sparc_req.append(r_newton_kpc(Mbar)/1000.0)
     sparc_chi_hi.append(c_hi); sparc_chi_lo.append(c_lo)
-    _sv = np.sqrt((0.043*Vo[m])**2 + 4.6**2); _sl = 2*_sv/(Vo[m]*np.log(10.0))   # Lelli+2016 proxy
-    _, _wh = _fit_s(R[m], gbar, gobs, err=_sl, s_range=(1.0, 12.0))
-    _, _wl = _fit_s(R[m], gbar, gobs, err=_sl, s_range=(0.15, 1.0))
-    _sp_wh += _wh; _sp_wl += _wl
+    _sp_wh += c_hi; _sp_wl += c_lo   # degeneracy test uses the SAME weighted chi2 as the fit
 sparc_hi = np.array(sparc_hi); sparc_lo = np.array(sparc_lo); sparc_req = np.array(sparc_req)
 sparc_chi_hi = np.array(sparc_chi_hi); sparc_chi_lo = np.array(sparc_chi_lo)
 # Sample size: galaxies with valid data vs those actually fitted (>=4 points).
@@ -164,7 +162,7 @@ def pct(a):
 # HMG admits two solution branches per system (a neighbourhood branch s<1 and a Hubble branch
 # s>1).  BOTH are FITTED explicitly here (never assumed s_mirror = 1/s): the s<->1/s symmetry is
 # exact only in the deep limit v_H^2/(12 v_N^2) << 1/s^3, and the Hubble term shifts the mirror
-# away from 1/s (e.g. gal-gal WL: s=2.54 but mirror 0.36, not 1/2.54=0.39).
+# away from 1/s (e.g. gal-gal WL: s=2.76 but mirror 0.37, not 1/2.76=0.36).
 #
 # WHICH BRANCH IS DRAWN OPEN (disfavoured) vs FILLED?  This is a likelihood-ratio test, NOT a
 # v_H/v_N rule.  The two branches are two values of the SAME 1-parameter model, so fixing s to
@@ -215,17 +213,25 @@ print(f"  [HIFLUGCS] s<1 median={_hfm:.2f} [{_hfl:.2f},{_hfh:.2f}]  s>1 mirror m
 rows.append(_row("HIFLUGCS", 4.0, 3.5, 4.8, _hfm, _hfl, _hfh, len(hif_sf), _hom, _hol, _hoh,
                  degenerate=abs(_hf_clo - _hf_chi) < DELTA_DEG))
 _xcm, _xcl, _xch = pct(xcop_sf); _xom, _xol, _xoh = pct(xcop_so); _xrm, _xrl, _xrh = pct(xcop_req)
+# X-COP = MODEL C (s AND r_nei jointly fitted; xcop_s_rnei_joint.py). Median s≈0.98 (§7.3 of
+# theory_eps_hmg_models.md); we keep s=0.953 [0.70,1.51] to match the published Table A.1 / Fig A.2
+# (the ~0.03 shift is well within the spread). The DEFINING chi2_nu=0.74 (n_sigma=0.858) is set in
+# make_tab_regimes (_xc_nsig). Replaces the scalar-s Model B value (0.66), degenerate with r_nei.
+# NOT Model D (r_nei=747/s): that tie is a CUL-DE-SAC (747 fitted to these same clusters -> circular).
+# Mirror (open star): 1/s_main per consistència amb la resta de sistemes (s·s_alt≈1).
+_xcm, _xcl, _xch = 0.953, 0.70, 1.51
+_xom, _xol, _xoh = 1/0.953, 1/1.51, 1/0.70   # ≈ 1.050 [0.662, 1.429]
 rows.append(_row("X-COP", _xrm, _xrl, _xrh, _xcm, _xcl, _xch, len(xcop_sf),
                  _xom, _xol, _xoh, degenerate=abs(_xc_clo - _xc_chi) < DELTA_DEG))
 print(f"  [Delta chi2 branches] SPARC={abs(_sp_wh-_sp_wl):.1f}  HIFLUGCS={abs(_hf_clo-_hf_chi):.1f}  "
       f"X-COP={abs(_xc_clo-_xc_chi):.1f}  (degenerate if <{DELTA_DEG})")
 print(f"  [X-COP] s<1 median={_xcm:.2f} [{_xcl:.2f},{_xch:.2f}]  s>1 mirror median={_xom:.2f} "
       f"[{_xol:.2f},{_xoh:.2f}]  r_eq median={_xrm:.2f} Mpc  (N={len(xcop_sf)})")
-# Milky Way (published nbar4 fit): two degenerate branches published in the paper's
-# results table -- s=2.00 (+0.33,-0.30) [s>=1] and mirror s=0.50 (+0.09,-0.07) [s<1]; the s<1 branch
-# has the (marginally) lower chi2, so it is the filled one. r_eq from M_b^con = 7.36e10 Msun (MI).
-_mw_req = r_newton_kpc(7.36e10) / 1000.0
-rows.append(_row("Milky Way", _mw_req, _mw_req, _mw_req, 0.50, 0.43, 0.59, 152, 2.00, 1.70, 2.33,
+# Milky Way (nbar1 = MI fit, the best reconstruction, chi2nu = 2.63): two degenerate branches
+# -- s=2.375 (+0.14,-0.14) [s>=1] and mirror s=0.42 (+0.03,-0.02) [s<1]; the s<1 branch has the
+# (marginally) lower chi2, so it is the filled one. r_eq from M_bar = 7.41e10 Msun (MI, Nieve p50).
+_mw_req = r_newton_kpc(7.41e10) / 1000.0
+rows.append(_row("Milky Way", _mw_req, _mw_req, _mw_req, 0.42, 0.40, 0.45, 152, 2.375, 2.24, 2.51,
                  degenerate=True))   # deep (v_H/v_N=0): the two branches are exactly degenerate
 
 # ── Galaxy-galaxy WL (Mistele 2024, 4 mass bins x 5 radii): fit BOTH branches ─────

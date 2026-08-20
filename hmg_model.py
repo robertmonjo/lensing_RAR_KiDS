@@ -239,9 +239,19 @@ def gbar_si(r_mpc, ms):
 
 # -- chi2 helpers (mass-bin panels) --------------------------------------------
 def _logsig(b):     return (np.log10(b[:, 3]) - np.log10(b[:, 2])) / 2.0
-def _chi2_arr(pred, bdata):
+def _chi2_arr_sym(pred, bdata):
+    """Chi2 with symmetric sigma = (log10_p84 - log10_p16)/2."""
     sig = _logsig(bdata)
     return float(np.sum(((np.log10(bdata[:, 1]) - np.log10(pred)) / sig)**2))
+def _chi2_arr(pred, bdata):
+    """Chi2 with asymmetric errors: sigma_up if pred>=gobs, sigma_dn if pred<gobs.
+    Morphological subsets do NOT call this; they compute sig directly from gerr."""
+    gobs = bdata[:, 1]
+    sig_up = np.log10(bdata[:, 3]) - np.log10(gobs)
+    sig_dn = np.log10(gobs) - np.log10(bdata[:, 2])
+    sig = np.where(pred >= gobs, sig_up, sig_dn)
+    return float(np.sum(((np.log10(gobs) - np.log10(pred)) / sig)**2))
+_chi2_arr_asym = _chi2_arr   # explicit alias for clarity in scripts
 def _r_kpc(bdata):  return bdata[:, 0] * MPC_TO_KPC
 
 def chi2_dl(s, gbar, gobs, gerr):

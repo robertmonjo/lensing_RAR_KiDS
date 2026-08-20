@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the associated paper and this repository."
+title: "Weak-lensing radial acceleration relation of KiDS-1000 isolated galaxies: HMG reproduction pipeline"
+abstract: "Self-contained pipeline reproducing the figures and tables of the paper testing Hyperconical Modified Gravity (HMG) against the KiDS-1000 weak-lensing radial acceleration relation of isolated galaxies, compared with MOND and Lambda-CDM."
+type: software
+authors:
+  - family-names: Monjo
+    given-names: Robert
+    affiliation: "CUNEF University, Madrid, Spain"
+  - family-names: Ullah
+    given-names: R.
+    affiliation: "Complutense University of Madrid, Spain"
+license: MIT
+repository-code: "https://github.com/robertmonjo/lensing_RAR_KiDS"
+version: "1.0.0"
+keywords:
+  - gravitational lensing weak
+  - modified gravity
+  - radial acceleration relation
+  - dark matter

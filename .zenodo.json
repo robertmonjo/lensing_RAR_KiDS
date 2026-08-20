@@ -1,0 +1,18 @@
+{
+  "title": "Weak-lensing radial acceleration relation of KiDS-1000 isolated galaxies: HMG reproduction pipeline",
+  "description": "Self-contained pipeline that reproduces every figure and table of the paper testing Hyperconical Modified Gravity (HMG) against the KiDS-1000 weak-lensing radial acceleration relation of isolated galaxies, compared with MOND and Lambda-CDM. Runs from scratch (python run_all.py) with only numpy/scipy/matplotlib and the committed data files.",
+  "upload_type": "software",
+  "license": "MIT",
+  "access_right": "open",
+  "creators": [
+    {"name": "Monjo, Robert", "affiliation": "CUNEF University, Madrid, Spain"},
+    {"name": "Ullah, R.", "affiliation": "Complutense University of Madrid, Spain"}
+  ],
+  "keywords": [
+    "gravitational lensing: weak",
+    "galaxies: kinematics and dynamics",
+    "dark matter",
+    "modified gravity",
+    "radial acceleration relation"
+  ]
+}

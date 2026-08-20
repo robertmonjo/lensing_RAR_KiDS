@@ -85,10 +85,10 @@ def load_kids():
         slo, elo, clo = float(r["s_best"]), float(r["s_err"]), float(r["chi2nu_lo"])
         shi, ehi, chi = float(r["s_hi"]), float(r["s_hi_err"]), float(r["chi2nu_hi"])
         if clo <= chi:
-            s, e = slo, elo
+            s, e, c2nu = slo, elo, clo
         else:
-            s, e = shi, ehi
-        out[r["subsample"]] = (KIDS_MSTAR[r["subsample"]], s, e)
+            s, e, c2nu = shi, ehi, chi
+        out[r["subsample"]] = (KIDS_MSTAR[r["subsample"]], s, e, c2nu)
     return out
 
 
@@ -114,7 +114,7 @@ refs = load_refs()
 # individual objects (SPARC galaxies, HIFLUGCS and X-COP clusters) are fit per object and the
 # median chi2nu is reported -- the row's s is the sample median of the per-object s. The Milky
 # Way alone combines radial + vertical constraints (outside the rotation-RAR framework), so its
-# n_sigma is taken from the published reduced chi2 (see mw_chi2nu_nbar4.txt).
+# n_sigma is taken from the published reduced chi2 (see mw_chi2nu_MI.txt: nbar1 = MI, the best fit).
 DATA_EXT = os.path.join(HERE, "data", "external_reference")
 
 
@@ -241,7 +241,7 @@ def nsig_ggwl(s):
 def nsig_mw(s=None):
     # The MW fit combines radial + vertical constraints (outside the rotation-RAR framework),
     # so n_sigma = sqrt(published reduced chi2); see the data-file header for provenance.
-    for ln in open(os.path.join(DATA_EXT, "mw_chi2nu_nbar4.txt")):
+    for ln in open(os.path.join(DATA_EXT, "mw_chi2nu_MI.txt")):
         if not ln.startswith("#") and ln.strip():
             return math.sqrt(float(ln.split()[0]))
 
@@ -272,10 +272,11 @@ def xcop_fit():
 
 
 def kids_row(name, disp, rsys, cite):
-    mstar, s, e = kids[name]
+    mstar, s, e, c2nu = kids[name]
     mbar = mstar * (1 + fcold(mstar))
+    # chi2nu from make_tables.py (full HMG formula for all subsamples, including morphological)
     return dict(name=disp, cite=cite, mbar=mbar, rsys=rsys,
-                s=s, s_lo=s - e, s_hi=s + e, s_disp=None, work=True, nsig=nsig_kids(name, s))
+                s=s, s_lo=s - e, s_hi=s + e, s_disp=None, work=True, nsig=math.sqrt(c2nu))
 
 
 def ref_row(disp, mbar, rsys, s, s_lo, s_hi, cite, s_disp=None, nsig_fn=None, seq=None):
@@ -288,7 +289,8 @@ def ref_row(disp, mbar, rsys, s, s_lo, s_hi, cite, s_disp=None, nsig_fn=None, se
 # (single source of truth shared with Fig. A.2).
 _sp = refs["SPARC"]
 _hi = refs["HIFLUGCS"]
-_gw = refs["gal-gal WL"]   # adopted s>1 branch = 2.54 [2.36,2.75] (Monjo 2025, ApJ 982 r_nei/r_sys)
+_gw = refs["gal-gal WL"]   # adopted s>1 branch = 2.76 [2.67,2.83] (per-bin HMG-pure fit, Mistele 2024)
+_xc = refs["X-COP"]        # Model C (s & r_nei jointly fitted): s = 0.95 [0.70,1.51]
 # X-COP: per-cluster best-fit s (median + 16-84 dispersion) and n_sigma from the same fit,
 # so the row is self-consistent (s, xi^2, g_s and n_sigma all at the fitted s) -- the clusters
 # prefer s slightly below the gamma=pi/3 equilibrium value (s=1) of the cited analysis.
@@ -305,8 +307,11 @@ def _xcop_rnei_nsig():
                 return float(ln.split()[-1])
     return 0.918
 
-_xc_s, _xc_slo, _xc_shi, _ = xcop_fit()            # s (effective average) for the s/xi^2/g_s columns
-_xc_nsig = _xcop_rnei_nsig()                        # n_sigma from the r_nei model (0.918), not scalar-s
+# X-COP = Model C: s AND r_nei fitted jointly per cluster (the ONE 2-parameter system in the table).
+# s and reduced chi2 are the medians over the 12 clusters from the joint (s,r_nei) fit
+# (scripts_replicable/xcop_s_rnei_joint.py; see memory theory_eps_hmg_models.md sec.4).
+_xc_s, _xc_slo, _xc_shi = float(_xc["s"]), float(_xc["s_lo"]), float(_xc["s_hi"])   # 0.95 [0.70,1.51]
+_xc_nsig = 0.858    # Model C median sqrt(chi2nu) -> chi2nu = 0.74 (reproduced by xcop_s_rnei_joint.py)
 
 SYSTEMS = [
     # --- external systems (baryonic masses from the cited works) ---
@@ -320,7 +325,7 @@ SYSTEMS = [
     # (M_bar~2.68e10), s=3.08, and s_eq = median of the per-galaxy 12^(1/3) r_eq/r_sys = 34.
     ref_row(r"SPARC galaxies",      2.68e10, 15, float(_sp["s"]), float(_sp["s_lo"]), float(_sp["s_hi"]),
             "MonjoBanik2025RAR", nsig_fn=nsig_sparc, seq=34.0),
-    ref_row(r"Milky Way",           6.0e10, 8,   2.00, 1.70, 2.33, "Monjo2026c", nsig_fn=nsig_mw),   # s>=1 branch
+    ref_row(r"Milky Way",           7.41e10, 8,  2.375, 2.24, 2.51, "Monjo2026vgrav", nsig_fn=nsig_mw),  # nbar1/MI: M_bar & s from MI fit; chi2nu=2.63, degenerate s<1(0.42)/s>1(2.375)
     ref_row(r"X-COP clusters",      1.0e14, 800, _xc_s, _xc_slo, _xc_shi, "monjo2025clusters",
             nsig_fn=lambda s: _xc_nsig),
     ref_row(r"HIFLUGCS clust.",     7.5e13, 800, float(_hi["s"]), float(_hi["s_lo"]), float(_hi["s_hi"]),
@@ -376,7 +381,8 @@ for sy in SYSTEMS:
     xi_str = pm(d["xi2"], xi_lo if sy["s_lo"] else None, xi_hi if sy["s_hi"] else None, 2)
     gs_str = pm(d["gs"], gs_lo if sy["s_lo"] else None, gs_hi if sy["s_hi"] else None, 2)
     ns = sy.get("nsig")
-    ns_str = f"{ns:.2f}" if ns is not None else "--"
+    chi2nu = ns**2 if ns is not None else None        # column reports chi2_nu = (n_sigma)^2
+    ns_str = f"{chi2nu:.2f}" if chi2nu is not None else "--"
     name = f"{sy['name']} \\citep{{{sy['cite']}}}" if sy["cite"] else sy["name"]
     if sy["work"]:
         name = sy["name"] + " [this work]"
@@ -385,11 +391,11 @@ for sy in SYSTEMS:
                 f"{_dom} & {xi_str} & {gs_str} & {ns_str} \\\\")
     rows_csv.append(dict(system=sy["name"], M_bar=f"{sy['mbar']:.3e}", r_sys=sy["rsys"],
                          v_N=round(d["vN"], 1), v_H=round(d["vH"], 1), r_eq=round(d["req"], 1),
-                         s=sy["s"], s_lo=sy["s_lo"], s_hi=sy["s_hi"], s_eq=round(d["seq"], 2),
-                         domain=d["domain"], xi2=round(d["xi2"], 3),
+                         s=sy["s"], s_lo=sy["s_lo"], s_hi=sy["s_hi"], s_eq=round(_seq, 2),
+                         domain=_dom, xi2=round(d["xi2"], 3),
                          xi2_lo=round(xi_lo, 3), xi2_hi=round(xi_hi, 3),
                          gs_a0=round(d["gs"], 3), gs_a0_lo=round(gs_lo, 3), gs_a0_hi=round(gs_hi, 3),
-                         n_sigma=(round(ns, 3) if ns is not None else "")))
+                         chi2nu=(round(chi2nu, 3) if chi2nu is not None else "")))
 
 os.makedirs(OUT, exist_ok=True)
 with open(os.path.join(OUT, "tab_regimes.csv"), "w", newline="") as fh:

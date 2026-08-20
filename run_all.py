@@ -38,10 +38,14 @@ STEPS = [
     "make_tab_regimes.py",         # Table A.1; reads tab_model_comparison + reference_systems + xcop_rnei
 ]
 
-# Auxiliary/exploratory figures deliberately NOT in STEPS: make_fig_gs_fields.py and
-# make_fig_xi_req.py.  They are diagnostic plots that do NOT appear in the manuscript
-# (the paper includes only fig1_kids_rar, figA1_regimes and figA2_landscape),
-# so they are excluded from the reproduction pipeline.  Run them by hand if needed.
+# Auxiliary/exploratory scripts deliberately NOT in STEPS (run by hand if needed):
+#   make_fig_gs_fields.py   -- diagnostic; not in manuscript
+#   make_fig_xi_req.py      -- diagnostic; not in manuscript
+#   xcop_s_rnei_joint.py    -- robustness test: 2D (s,r_nei) joint fit + chi2(s) profile for X-COP
+#                              Outputs: xcop_s_rnei_profile.png, xcop_s_rnei_grid.csv,
+#                              xcop_s_rnei_ridge.csv.  Conclusion: s is unconstrained when
+#                              r_nei is free (flat chi2 profile for s in [0.7,1.6]); the r_nei
+#                              model (s=1) is the parsimonious correct parametrisation.
 
 def main():
     print("=" * 70)
