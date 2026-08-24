@@ -171,7 +171,7 @@ def chi2_cluster_curves(kind):
             for a in grp]
 
 # ── Compute chi2 landscape over s range matching panel axes ───────────────────
-s_arr = np.logspace(np.log10(0.08), np.log10(13.0), 700)   # extends past the [0.1,10] axis so (b) curves exit cleanly
+s_arr = np.logspace(np.log10(0.001), np.log10(600), 1500)  # extends past [0.002,500] axis so (b) curves exit cleanly
 print("Computing chi2 landscape...", flush=True)
 c_all   = np.array([chi2_all(s)   for s in s_arr])
 c_bins  = [np.array([chi2_bin(s, i) for s in s_arr]) for i in range(4)]
@@ -180,6 +180,12 @@ c_early = np.array([chi2_morph(s, _gb_early, _go_early, _ge_early, "early") for 
 c_blue  = np.array([chi2_morph(s, _gb_blue,  _go_blue,  _ge_blue,  "blue")  for s in s_arr])
 c_red   = np.array([chi2_morph(s, _gb_red,   _go_red,   _ge_red,   "red")   for s in s_arr])
 print("Done.")
+# ── UDG global chi2_nu(s): 6 gas-rich UDGs, joint HMG s<1 fit ─────────────
+# fit_hmg_udg.py is bundled in this directory for standalone reproducibility.
+import fit_hmg_udg as _F_udg
+_c_udg_nu = len(_F_udg.DATA) - 1   # N - k = 6 - 1 = 5
+_c_udg = np.array([_F_udg.chi2_hmg(float(s)) for s in s_arr]) / _c_udg_nu
+print(f"UDG chi2_nu at s=0.0098: {_F_udg.chi2_hmg(0.0098)/_c_udg_nu:.3f}")
 
 # ── s_equal functions ─────────────────────────────────────────────────────────
 def Cseq(M):
@@ -189,8 +195,8 @@ def r_newton(M):
     return (G_CODE * M * T0**2) ** (1.0/3.0) / 1000.0  # Mpc
 
 # ── Layout constants ───────────────────────────────────────────────────────────
-s_min_ax  = 0.1
-s_max_ax  = 10.0
+s_min_ax  = 0.002
+s_max_ax  = 100.0
 r_min_ax  = 0.050
 r_max_ax  = 5.50
 M_REF     = 3.2e10
@@ -274,8 +280,9 @@ for el in ELEMENTS:
 _lnk = float(np.mean(np.array(_ly) - SLOPE * np.array(_lx)))
 K = float(np.exp(_lnk))
 R_CROSS = K ** (-1.0 / SLOPE)   # r_eq where s_lo = s_hi = 1
+L_SYM = 0.24  # [Mpc] exponential scale length: s_sym = exp(+-L_SYM/r_eq)
 _rms = float(np.sqrt(np.mean((np.array(_ly) - (SLOPE*np.array(_lx) + _lnk))**2)) / np.log(10))  # dex
-print(f"exponent a={SLOPE:.3f}  k(filled)={K:.3f}  s=1 crossing r_eq={R_CROSS:.3f} Mpc  rms={_rms:.3f} dex")
+print(f"exponent a={SLOPE:.3f}  k(filled)={K:.3f}  s=1 crossing r_eq={R_CROSS:.3f} Mpc  L_SYM={L_SYM:.2f}  rms={_rms:.3f} dex")
 
 # ── Matplotlib style ──────────────────────────────────────────────────────────
 mpl.rcParams.update({
@@ -295,11 +302,13 @@ mpl.rcParams.update({
     'legend.framealpha'  : 0.92,
 })
 
-yt = [0.1, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0, 8.0]
+_S_CROSS = 12.0 ** (1.0 / 3.0)          # ≈ 2.289; crossover v_H = v_N
+yt_base = [0.002, 0.005, 0.01, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 50, 100]
+yt = sorted(yt_base + [_S_CROSS, 1.0/_S_CROSS])
 
 # ── Figure layout: (a)=s_equal, (b)=chi2 landscape ───────────────────────────
 fig, (ax1, ax2) = plt.subplots(
-    1, 2, figsize=(13.0, 6.4),
+    1, 2, figsize=(13.0, 7.04),
     gridspec_kw={'width_ratios': [1.2, 1.0]},
     sharey=True
 )
@@ -308,76 +317,88 @@ fig.subplots_adjust(left=0.09, right=0.98, bottom=0.12, top=0.96, wspace=0.16)
 # ══════════════════════════════════════════════════════════════════════════════
 # Panel (a) — s_equal regime map (x=r, y=s)   [LEFT, shows y-axis]
 # ══════════════════════════════════════════════════════════════════════════════
-# Symmetric relations forced to cross at s=1, fitted amplitude k (filled points):
-#   s_lo = k r_eq^{+1/2} ;  s_hi = (1/k) r_eq^{-1/2}   (mirror about s=1)
-r_line = np.logspace(np.log10(r_min_ax), np.log10(r_max_ax), 400)
-# Below the crossing the two basins are distinct; above it they merge onto s=1.
-r_lo = np.concatenate([r_line[r_line < R_CROSS], [R_CROSS]])
-r_hi = np.concatenate([[R_CROSS], r_line[r_line > R_CROSS]])
-ax1.plot(r_lo, K * r_lo**SLOPE,        color='#333333', lw=1.6, ls=(0, (6, 3)), zorder=3)
-ax1.plot(r_lo, (1.0/K) * r_lo**-SLOPE, color='#333333', lw=1.6, ls=(0, (6, 3)), zorder=3)
-ax1.plot(r_hi, np.ones_like(r_hi),     color='#333333', lw=1.8, ls=(0, (6, 3)), zorder=3)
+# s_low/s_high power-law relations with k=1 [Mpc^-1], crossing at r_eq = 1/k = 1 Mpc.
+# s_low = k*r_eq (neighbourhood-dominated), s_high = 1/(k*r_eq) (Hubble-dominated),
+# merging to s=1 for r_eq >= 1/k.
+K_REF = 1.0   # [Mpc^-1]
+r_line = np.logspace(-3, np.log10(r_max_ax), 500)  # from 0.001 Mpc ≈ 0
+_slo = np.where(r_line < 1.0/K_REF, K_REF * r_line, 1.0)
+_shi = np.where(r_line < 1.0/K_REF, 1.0 / (K_REF * r_line), 1.0)
+ax1.plot(r_line, _shi, color='#333333', lw=1.6, ls=(0, (6, 3)), zorder=3)
+ax1.plot(r_line, _slo, color='#333333', lw=1.6, ls=(0, (6, 3)), zorder=3)
+# Additional s_low/s_high curves for k=0.5 and k=2 [Mpc^-1] in light grey
+for _k_alt in (0.5, 2.0):
+    _slo_alt = np.where(r_line < 1.0/_k_alt, _k_alt * r_line, 1.0)
+    _shi_alt = np.where(r_line < 1.0/_k_alt, 1.0 / (_k_alt * r_line), 1.0)
+    ax1.plot(r_line, _shi_alt, color='#aaaaaa', lw=0.9, ls=(0, (6, 3)), zorder=2)
+    ax1.plot(r_line, _slo_alt, color='#aaaaaa', lw=0.9, ls=(0, (6, 3)), zorder=2)
 # Thick, faint grey guides at the xi^2 crossover s_eq = 12^{1/3} (where the neighbourhood term
 # 1/s^3 equals the Hubble term at r = r_eq, i.e. v_H = v_N) and its s <-> 1/s mirror 12^{-1/3}.
 # Drawn above the g_s/a0 field (zorder 0) but below the reference lines and data stars, each with
 # a small left-edge label.
-_S_CROSS = 12.0 ** (1.0 / 3.0)
-_guides = [(_S_CROSS,       r'$v_H\!=\!v_N$ with $s>1$ ($s\!\approx\!2.29$)'),
-           (1.0 / _S_CROSS, r'$v_H\!=\!v_N$ with $s<1$ ($s\!\approx\!0.44$)')]
-for _sc, _txt in _guides:
+# Guide lines at xi^2 crossover; s value shown as custom y-axis tick "2.29→" / "0.44→"
+for _sc, _shortlbl in [(_S_CROSS, r'$v_H\!=\!v_N$, $s\!>\!1$'),
+                        (1.0/_S_CROSS, r'$v_H\!=\!v_N$, $s\!<\!1$')]:
     ax1.axhline(_sc, color='0.40', lw=7, alpha=0.25, zorder=1, solid_capstyle='round')
-    ax1.text(0.053, _sc, _txt, ha='left', va='center', fontsize=6.3,
-             color='0.25', fontstyle='italic', zorder=6,
-             path_effects=[pe.withStroke(linewidth=2.4, foreground='white')])
+    ax1.text(0.08, _sc, _shortlbl, ha='center', va='center', fontsize=5.5,
+             color='0.25', fontstyle='italic', zorder=5,
+             bbox=dict(boxstyle='round,pad=0.08', fc='white', ec='none', alpha=0.95))
 _lbl_eff = [pe.withStroke(linewidth=2.6, foreground='white')]
-_rlbl = 0.56                                        # label anchor at r_eq ~ 0.56 Mpc
-ax1.text(_rlbl, K*_rlbl**SLOPE, r'$s_\mathrm{low}$', color='#222', fontsize=10, rotation=43,
-         rotation_mode='anchor', ha='center', va='bottom', zorder=5, path_effects=_lbl_eff)
-ax1.text(_rlbl, 1.0/(K*_rlbl**SLOPE), r'$s_\mathrm{high}$', color='#222', fontsize=10, rotation=-43,
-         rotation_mode='anchor', ha='center', va='bottom', zorder=5, path_effects=_lbl_eff)
+# s_low/s_high labels: at r_eq = 0.09 Mpc, rotated parallel to each curve (~±50° in display)
+_r_lbl = 0.09
+ax1.text(_r_lbl, K_REF*_r_lbl / 1.55, r'$s_\mathrm{low}$', color='#333', fontsize=9,
+         ha='center', va='center', rotation=50, rotation_mode='anchor', zorder=5,
+         path_effects=_lbl_eff)
+ax1.text(_r_lbl, 1.0/(K_REF*_r_lbl) * 1.60, r'$s_\mathrm{high}$', color='#333', fontsize=9,
+         ha='center', va='center', rotation=-50, rotation_mode='anchor', zorder=5,
+         path_effects=_lbl_eff)
 
 # External reference systems from Table A.1 (r_eq [Mpc], s), read from reference_systems.csv.
 # Each may carry the s<->1/s degeneracy: FILLED star = adopted branch, OPEN star = the mirror,
 # FITTED separately per system (NOT 1/s -- the Hubble term breaks the symmetry, e.g. gal-gal WL).
 import csv as _csv
 _refdir = os.path.dirname(DST)
-_lab = {'SPARC': ('SPARC', (9, 3), 'left'), 'X-COP': ('X-COP clusters', (-10, -13), 'right'),
-        'HIFLUGCS': ('HIFLUGCS', (-8, 11), 'right'), 'Milky Way': ('Milky Way', (9, -3), 'left'),
-        'gal-gal WL': ('gal--gal WL', (9, 2), 'left')}
-_abs = {'HIFLUGCS': (2.5, 0.85), 'X-COP': (3.2, 0.65)}      # cluster labels at data positions
-# labels for the OPEN (mirror) stars of the degenerate systems
-_lab_alt = {'SPARC': ('SPARC', (-9, -4), 'right'), 'Milky Way': ('Milky Way', (9, 2), 'left'),
-            'gal-gal WL': ('gal--gal WL', (9, -3), 'left')}
+# Ordered warm-yellow → dark-blue colour sequence (legend order: col3 top→bot, col4 top→bot→MW last)
+# 1 X-COP         groc ataronjat (orange-yellow)
+# 2 HIFLUGCS      groc (yellow)
+# 3 X-ray groups  groc claret (light yellow)
+# 4 gal-gal WL    groc verdós (yellowish-green)
+# 5 SPARC         verd claret (light green)
+# 6 MIGHTEE       verd blavós claret (light blue-green)
+# 7 UDGs          blau cel (sky blue)
+# 8 Milky Way     blau fosc (dark blue) — last in legend
+_SYS_COL = {
+    'X-COP':      ('#FFA040', '#7A3800'),  # 1 groc ataronjat
+    'HIFLUGCS':   ('#FFD700', '#705800'),  # 2 groc
+    'gal-gal WL': ('#BBCC00', '#4A5200'),  # 4 groc verdós
+    'SPARC':      ('#80CC80', '#204820'),  # 5 verd claret
+    'Milky Way':  ('#1A3BAA', '#0A1A60'),  # 8 blau fosc (last)
+}
+_COL_XRG = ('#FFE880', '#705800')   # 3 groc claret      (X-ray groups)
+_COL_MIG = ('#40BBAA', '#005555')   # 6 verd blavós claret (MIGHTEE)
+_COL_UDG = ('#6BB8E8', '#1A5080')   # 7 blau cel          (UDGs)
+
 def _star(x, y, xe, ye, filled, fc='#ffe14d', ec='#6e5200', erc='#8a6d00'):
     if filled:   # adopted branch: crisp, dark, thick edge
-        ax1.errorbar(x, y, xerr=xe, yerr=ye, fmt='*', color=fc, ms=18, mec=ec,
-                     mew=1.6, ecolor=erc, elinewidth=1.1, capsize=3, zorder=9)
+        ax1.errorbar(x, y, xerr=xe, yerr=ye, fmt='*', color=fc, ms=14, mec=ec,
+                     mew=1.4, ecolor=erc, elinewidth=1.1, capsize=3, zorder=9)
     else:        # mirror branch: hollow, thin, soft edge
         ax1.errorbar(x, y, xerr=xe, yerr=ye, fmt='*', mfc='none', mec=ec, mew=0.8,
-                     ms=18, ecolor=erc, elinewidth=0.8, capsize=3, zorder=8)
-def _reflabel(nm, x, y, off, ha, alt=False):
-    ax1.annotate(nm, (x, y), textcoords='offset points', xytext=off, fontsize=(7.0 if alt else 7.4),
-                 color=('#a98f52' if alt else '#8a6d00'), style='italic', ha=ha, zorder=9,
-                 path_effects=[pe.withStroke(linewidth=2.0, foreground='white')])
+                     ms=14, ecolor=erc, elinewidth=0.8, capsize=3, zorder=8)
+
 for _r in _csv.DictReader(open(os.path.join(_refdir, "reference_systems.csv"))):
     _x, _y = float(_r['r_eq']), float(_r['s'])
     _xe = None if float(_r['r_eq_lo']) == float(_r['r_eq_hi']) else \
           [[_x - float(_r['r_eq_lo'])], [float(_r['r_eq_hi']) - _x]]
     _ye = None if float(_r['s_lo']) == float(_r['s_hi']) else \
           [[_y - float(_r['s_lo'])], [float(_r['s_hi']) - _y]]
-    _star(_x, _y, _xe, _ye, filled=True)
-    if _r['name'] in _abs:                            # filled-star label
-        ax1.text(*_abs[_r['name']], _lab[_r['name']][0], fontsize=7.4, color='#8a6d00', style='italic',
-                 ha='center', va='center', zorder=9, path_effects=[pe.withStroke(linewidth=2.2, foreground='white')])
-    else:
-        _reflabel(_lab[_r['name']][0], _x, _y, _lab[_r['name']][1], _lab[_r['name']][2])
-    if _r.get('s_alt', '') not in ('', None):         # mirror branch: filled if statistically
-        _ya = float(_r['s_alt'])                      # indistinguishable from the other, else open
+    _sfc, _sec = _SYS_COL.get(_r['name'], ('#ffe14d', '#6e5200'))
+    _star(_x, _y, _xe, _ye, filled=True, fc=_sfc, ec=_sec, erc=_sec)
+    if _r.get('s_alt', '') not in ('', None):         # mirror branch
+        _ya = float(_r['s_alt'])
         _yea = [[_ya - float(_r['s_alt_lo'])], [float(_r['s_alt_hi']) - _ya]]
         _deg = str(_r.get('degenerate', '0')) == '1'
-        _star(_x, _ya, _xe, _yea, filled=_deg)
-        if _r['name'] in _lab_alt:
-            _reflabel(_lab_alt[_r['name']][0], _x, _ya, _lab_alt[_r['name']][1], _lab_alt[_r['name']][2], alt=not _deg)
+        _star(_x, _ya, _xe, _yea, filled=_deg, fc=_sfc, ec=_sec, erc=_sec)
 # SPARC individual galaxies: small stars on BOTH branches -- FILLED = each galaxy's lower-chi2
 # branch, OPEN = its mirror (same filled/open convention as the big stars).
 _pg = os.path.join(_refdir, "sparc_per_galaxy.csv")
@@ -385,10 +406,11 @@ if os.path.exists(_pg):
     _gx, _gf, _go = [], [], []
     for _g in _csv.DictReader(open(_pg)):
         _gx.append(float(_g['r_eq'])); _gf.append(float(_g['s_fill'])); _go.append(float(_g['s_open']))
-    ax1.plot(_gx, _gf, marker='*', ls='', ms=5.4, color='#ffe14d', mec='#6e5200', mew=0.8,
-             alpha=0.6, zorder=6)                                    # filled = min-chi2 (crisp edge)
-    ax1.plot(_gx, _go, marker='*', ls='', ms=5.2, mfc='none', mec='#c9a24a', mew=0.5,
-             alpha=0.6, zorder=6)                                    # open = mirror (soft edge)
+    _sp_fc, _sp_ec = _SYS_COL['SPARC']
+    ax1.plot(_gx, _gf, marker='*', ls='', ms=5.4, color=_sp_fc, mec=_sp_ec, mew=0.8,
+             alpha=0.65, zorder=6)                                   # filled = min-chi2
+    ax1.plot(_gx, _go, marker='*', ls='', ms=5.2, mfc='none', mec=_sp_ec, mew=0.5,
+             alpha=0.60, zorder=6)                                   # open = mirror
 # X-COP and HIFLUGCS individual clusters: FILLED = each cluster's s<1 fit, OPEN = its 1/s mirror.
 for _fn in ("xcop_per_cluster.csv", "hiflugcs_per_cluster.csv"):
     _cp = os.path.join(_refdir, _fn)
@@ -397,10 +419,11 @@ for _fn in ("xcop_per_cluster.csv", "hiflugcs_per_cluster.csv"):
     _cd = list(_csv.DictReader(open(_cp)))
     _cx = [float(_c['r_eq']) for _c in _cd]
     _cf = [float(_c['s_fill']) for _c in _cd]; _co = [float(_c['s_open']) for _c in _cd]
-    ax1.plot(_cx, _cf, marker='*', ls='', ms=6.0, color='#ffe14d', mec='#6e5200', mew=0.8,
-             alpha=0.6, zorder=6)                                    # filled = fitted s (crisp edge)
-    ax1.plot(_cx, _co, marker='*', ls='', ms=5.8, mfc='none', mec='#c9a24a', mew=0.5,
-             alpha=0.6, zorder=6)                                    # open = 1/s mirror (soft edge)
+    _cfc, _cec = _SYS_COL['X-COP'] if 'xcop' in _fn else _SYS_COL['HIFLUGCS']
+    ax1.plot(_cx, _cf, marker='*', ls='', ms=6.0, color=_cfc, mec=_cec, mew=0.8,
+             alpha=0.65, zorder=6)                                   # filled = fitted s
+    ax1.plot(_cx, _co, marker='*', ls='', ms=5.8, mfc='none', mec=_cec, mew=0.5,
+             alpha=0.60, zorder=6)                                   # open = 1/s mirror
 # Gal-gal WL individual mass bins (Mistele 2024, 4 bins): all degenerate (Delta chi2 < 0.3).
 # Both branches drawn FILLED (same gold star, alpha=0.6) to signal degeneracy.
 _gp = os.path.join(_refdir, "galgal_per_bin.csv")
@@ -409,34 +432,250 @@ if os.path.exists(_gp):
     _gx = [float(_g['r_eq']) for _g in _gd]
     _gf = [float(_g['s_fill']) for _g in _gd]
     _go = [float(_g['s_open']) for _g in _gd]
-    ax1.plot(_gx, _gf, marker='*', ls='', ms=6.0, color='#ffe14d', mec='#6e5200', mew=0.8,
+    _gwfc, _gwec = _SYS_COL['gal-gal WL']
+    ax1.plot(_gx, _gf, marker='*', ls='', ms=6.0, color=_gwfc, mec=_gwec, mew=0.8,
              alpha=0.65, zorder=6)
-    ax1.plot(_gx, _go, marker='*', ls='', ms=6.0, color='#ffe14d', mec='#6e5200', mew=0.8,
+    ax1.plot(_gx, _go, marker='*', ls='', ms=6.0, color=_gwfc, mec=_gwec, mew=0.8,
              alpha=0.65, zorder=6)
 
-# Gas-rich UDGs (Monjo 2026udg): global HMG fit prefers s<1 (s=0.01, chi2=8.6) over the
-# s->inf branch (chi2=17.1) -> bottom with a downward arrow (s < axis floor).
-_udg_y = s_min_ax*1.28
-ax1.annotate('', xy=(0.111, s_min_ax*1.01), xytext=(0.111, _udg_y),
-             arrowprops=dict(arrowstyle='-|>', color='#b8860b', lw=1.5), zorder=9)
-ax1.plot(0.111, _udg_y, marker='*', color='#ffe14d', ms=16, mec='#6e5200', mew=1.6, ls='',
-         zorder=9, path_effects=[pe.withStroke(linewidth=3.0, foreground='white')])
-ax1.annotate(r'UDGs ($s\!\simeq\!0.01$)', (0.111, _udg_y), textcoords='offset points',
-             xytext=(9, 1), fontsize=7.4, color='#8a6d00', style='italic', ha='left', zorder=9,
-             path_effects=[pe.withStroke(linewidth=2.2, foreground='white')])
-# Asymptotic s>1 branch (published UDG paper): alternative solution -> open star, top, arrow up.
-_udg_y2 = s_max_ax*0.82
-ax1.annotate('', xy=(0.111, s_max_ax*0.985), xytext=(0.111, _udg_y2),
-             arrowprops=dict(arrowstyle='-|>', color='#b8860b', lw=1.3), zorder=8)
-ax1.plot(0.111, _udg_y2, marker='*', mfc='none', mec='#c9a24a', mew=1.0, ms=15, ls='', zorder=8,
+# ── HMG group/UDG bisector (used for X-ray groups AND UDGs below) ─────────────
+_GS_MAX_SI = 2.0*C_KMS/T0 * math.cos(math.pi/3)/(math.pi/3) * CODE_TO_SI  # ≈ 5.48 a_0
+
+def _hmg_gtot_grp(g_bar_SI, r_kpc, s):
+    gc  = g_bar_SI / CODE_TO_SI
+    v2n = max(gc * r_kpc, 1e-60)
+    xi2 = 1.0/s**3 + (r_kpc/T0)**2 / (12.0*v2n)
+    ge  = 2.0*C_KMS/T0 * float(_q(math.sqrt(max(xi2, 1e-30)))) * CODE_TO_SI
+    return math.sqrt(max(g_bar_SI*(g_bar_SI + ge), 0.0))
+
+def _bisect_s_grp(g_bar_SI, g_obs_SI, r_kpc):
+    """Find s<1 s.t. g_tot(s)=g_obs by bisection. Returns None if railed."""
+    if _hmg_gtot_grp(g_bar_SI, r_kpc, 0.9999) < g_obs_SI:
+        return None   # railed
+    if _hmg_gtot_grp(g_bar_SI, r_kpc, 1e-4) > g_obs_SI:
+        return None   # g_obs < g_bar (sub-Newtonian)
+    _sl, _sh = 1e-4, 0.9999
+    for _ in range(60):
+        _sm = 0.5*(_sl + _sh)
+        if _hmg_gtot_grp(g_bar_SI, r_kpc, _sm) < g_obs_SI:
+            _sl = _sm
+        else:
+            _sh = _sm
+    return 0.5*(_sl + _sh)
+
+# Gas-rich UDGs (Mancera Pina 2022, 6 galaxies): per-galaxy HMG fits (s<1 basin).
+# Data: (id, log10_Mbar[Msun], r_sys[kpc], v_obs[km/s], v_N[km/s], sig(log10 Mbar), sv+[km/s], sv-[km/s])
+# Source: Mancera Pina et al. 2022, Table 1; same values as hmg_udg_revised/scripts_experiment/make_fig2_landscape.py.
+# s uncertainty: vary v_obs by ±sv (not v_N, which is fixed by M_bar); xerr from sig(log10 Mbar)/3.
+_UDGS_CLA = [
+    ("114905", 9.21, 8.02,  23.0, 29.0, 0.19, 4.0, 6.0),  # v_obs < v_N → sub-Newton
+    ("122966", 9.21, 10.80, 37.0, 25.0, 0.13, 5.0, 6.0),
+    ("219533", 9.36, 9.78,  37.0, 32.0, 0.21, 6.0, 5.0),
+    ("248945", 9.05, 8.55,  27.0, 24.0, 0.19, 3.0, 3.0),
+    ("334315", 9.25, 8.49,  25.0, 30.0, 0.16, 5.0, 5.0),  # v_obs < v_N → sub-Newton
+    ("749290", 9.17, 8.47,  26.0, 27.0, 0.15, 6.0, 6.0),  # v_obs < v_N → sub-Newton
+]
+_C_UDG  = _COL_UDG[0]
+_C_UDGE = _COL_UDG[1]
+_udg_floor = s_min_ax * 1.65
+for _uid, _lmb, _rk_u, _vo, _vn, _slm, _svp, _svm in _UDGS_CLA:
+    _mb_u = 10.0**_lmb
+    _req_u = (G_CODE * _mb_u * T0**2)**(1.0/3.0) / 1000.0
+    _dlr   = _slm / 3.0  # sigma(log10 r_eq)
+    _xerr_u = [[_req_u * (1.0 - 10.0**(-_dlr))], [_req_u * (10.0**_dlr - 1.0)]]
+    _gb_u  = _vn**2 / _rk_u * CODE_TO_SI    # g_bar from v_N at r_sys
+    _go_u  = _vo**2 / _rk_u * CODE_TO_SI    # g_obs from v_obs at r_sys
+    if _vo <= _vn:   # sub-Newtonian: v_obs < v_N → no positive s solution
+        ax1.errorbar(_req_u, _udg_floor, xerr=_xerr_u, fmt='*', color=_C_UDG, ms=6.0,
+                     mec=_C_UDGE, mew=0.7, ecolor=_C_UDGE, elinewidth=0.9,
+                     capsize=2.5, zorder=9)
+        ax1.annotate('', xy=(_req_u, s_min_ax*1.04), xytext=(_req_u, _udg_floor*0.82),
+                     arrowprops=dict(arrowstyle='-|>', color=_C_UDGE, lw=1.1), zorder=9)
+    else:
+        _sf_u = _bisect_s_grp(_gb_u, _go_u, _rk_u)
+        if _sf_u is None:
+            continue
+        _go_u_hi = (_vo + _svp)**2 / _rk_u * CODE_TO_SI
+        _vo_lo   = max(_vo - _svm, _vn)
+        _go_u_lo = _vo_lo**2 / _rk_u * CODE_TO_SI
+        _sf_u_hi = _bisect_s_grp(_gb_u, _go_u_hi, _rk_u)
+        _sf_u_lo = _bisect_s_grp(_gb_u, _go_u_lo, _rk_u) if _go_u_lo > _gb_u else None
+        _yerr_u = [[max(_sf_u - (_sf_u_lo if _sf_u_lo else s_min_ax), 0)],
+                   [max((_sf_u_hi if _sf_u_hi else _sf_u) - _sf_u, 0)]]
+        ax1.errorbar(_req_u, _sf_u, xerr=_xerr_u, yerr=_yerr_u, fmt='*', color=_C_UDG, ms=6.0,
+                     mec=_C_UDGE, mew=0.7, ecolor=_C_UDGE, elinewidth=0.9,
+                     capsize=2.5, zorder=9)
+# Global-fit star (6 UDGs; joint HMG s<1 best fit s=0.0098, mean r_eq=0.112 Mpc)
+_s_med_udg = 0.0098
+_med_xerr = [[0.1117 * 0.109], [0.1117 * 0.122]]
+_med_yerr = [[_s_med_udg - 0.002], [0.023 - _s_med_udg]]
+_s_med_show = max(_s_med_udg, _udg_floor)
+ax1.errorbar(0.1117, _s_med_show,
+             xerr=_med_xerr,
+             yerr=None if _s_med_udg < s_min_ax else _med_yerr,
+             fmt='*', color=_C_UDG, ms=14, mec=_C_UDGE,
+             mew=1.4, ecolor=_C_UDGE, elinewidth=1.2, capsize=3, zorder=10, label='_nolegend_')
+if _s_med_udg < s_min_ax:
+    ax1.annotate('', xy=(0.1117, s_min_ax*1.04), xytext=(0.1117, _s_med_show*0.82),
+                 arrowprops=dict(arrowstyle='-|>', color=_C_UDGE, lw=1.3), zorder=10)
+# Asymptotic s>1 branch (published UDG paper): alternative solution → open star, arrow up.
+# Star at 40% of s_max to leave enough room for a clearly visible arrow up to 92%.
+_udg_y2 = s_max_ax * 0.40
+ax1.annotate('', xy=(0.111, s_max_ax * 0.92), xytext=(0.111, _udg_y2),
+             arrowprops=dict(arrowstyle='-|>', color=_C_UDGE, lw=1.5), zorder=8)
+ax1.plot(0.111, _udg_y2, marker='*', mfc='none', mec=_C_UDGE, mew=1.0, ms=12, ls='', zorder=8,
          path_effects=[pe.withStroke(linewidth=2.6, foreground='white')])
-ax1.text(0.11, 9.5, r'UDGs ($s\!>\!40$)', fontsize=7.4, color='#8a6d00', style='italic',
-         ha='left', va='top', zorder=8, path_effects=[pe.withStroke(linewidth=2.2, foreground='white')])
+
+# MIGHTEE UDGs (Ponomareva 2021): 4 gas-rich UDGs with HMG kinematics, s<1 fits.
+# r_eq [Mpc] and s values pre-computed; yerr from ±40% RHI variation, no xerr.
+_MIG = [
+    (0.1781, 0.1269, 0.1193, 0.1305, '#6BAED6'),  # J021759 marginal (face-on)
+    (0.2484, 0.0458, 0.0333, 0.0511, '#B2182B'),  # J022350 outlier
+    (0.1575, 0.2536, 0.2487, 0.2559, '#2166AC'),  # J022429 on
+    (0.1635, 0.2950, 0.2908, 0.2971, '#2166AC'),  # J022522 on
+]
+# r_eq ∝ M_HI^(1/3): ±40% M_HI → r_eq uncertainty fractions
+_RHI_LO = 1.0 - 0.60**(1.0/3.0)   # ≈ 0.157
+_RHI_HI = 1.40**(1.0/3.0) - 1.0   # ≈ 0.119
+_mig_fc, _mig_ec = _COL_MIG
+for _mreq, _ms0, _msl, _msh, _mc in _MIG:
+    _myerr = [[max(_ms0 - _msl, 0)], [max(_msh - _ms0, 0)]]
+    _mxerr = [[_mreq * _RHI_LO], [_mreq * _RHI_HI]]
+    ax1.errorbar(_mreq, _ms0, xerr=_mxerr, yerr=_myerr, fmt='*', color=_mig_fc, ms=6.0,
+                 mec=_mig_ec, mew=0.8, ecolor=_mig_ec, elinewidth=1.1,
+                 capsize=2.5, zorder=9, label='_nolegend_')
+# Median MIGHTEE star (4 galaxies): r_eq=0.1708 Mpc, s=0.1903
+_mig_med_xerr = [[0.1708 - 0.1575], [0.2484 - 0.1708]]
+_mig_med_yerr = [[0.1903 - 0.0458], [0.2950 - 0.1903]]
+ax1.errorbar(0.1708, 0.1903, xerr=_mig_med_xerr, yerr=_mig_med_yerr, fmt='*',
+             color=_mig_fc, ms=14, mec=_mig_ec, mew=1.4,
+             ecolor=_mig_ec, elinewidth=1.1, capsize=3, zorder=10, label='_nolegend_')
+
+# MIGHTEE s>1 mirror branch: open stars at s_mirror = 1/s_best
+_MIG_MIR = [
+    (0.1781, 0.1269, 0.1193, 0.1305, '#6BAED6'),  # J021759
+    (0.2484, 0.0458, 0.0333, 0.0511, '#B2182B'),  # J022350
+    (0.1575, 0.2536, 0.2487, 0.2559, '#2166AC'),  # J022429
+    (0.1635, 0.2950, 0.2908, 0.2971, '#2166AC'),  # J022522
+]
+for _mreq, _ms0, _msl, _msh, _mc in _MIG_MIR:
+    _sm = 1.0/_ms0
+    _ye_m = [[max(_sm - 1.0/_msh, 0)], [max(1.0/_msl - _sm, 0)]]
+    _mxerr_m = [[_mreq * _RHI_LO], [_mreq * _RHI_HI]]
+    ax1.errorbar(_mreq, _sm, xerr=_mxerr_m, yerr=_ye_m, fmt='*', mfc='none', mec=_mig_ec, mew=0.8,
+                 ms=6.0, ecolor=_mig_ec, elinewidth=1.0, capsize=2.5, zorder=8, label='_nolegend_')
+# Median mirror star (s_med_mir = 1/0.1903 ≈ 5.26)
+_sm_med = 1.0/0.1903
+ax1.errorbar(0.1708, _sm_med, xerr=[[0.1708-0.1575],[0.2484-0.1708]],
+             yerr=[[_sm_med-1.0/0.2950],[1.0/0.0458-_sm_med]], fmt='*',
+             mfc='none', mec=_mig_ec, mew=1.4, ms=14, ecolor=_mig_ec,
+             elinewidth=1.1, capsize=3, zorder=8, label='_nolegend_')
+
+# ── X-ray galaxy groups (Gastaldello et al. 2007) ─────────────────────────────
+# 16 X-ray groups (T~1-3 keV), Chandra/XMM; one RAR point per group at r_Δ.
+# Branch degeneracy (Hubble term << neighbourhood at group scale): BOTH branches filled.
+# Columns: (r_kpc, Mtot_1e13, sMtot, Mgas_1e12, sMgas, Mstar_1e10, sMstar)
+_GRPS = [
+    (295, 1.85, 0.04,  1.21, 0.02,  0.0,   0.0),   # NGC 5044
+    (215, 1.42, 0.03,  1.02, 0.02,  11.2,  4.1),   # NGC 1550
+    (185, 0.92, 0.08,  0.31, 0.03,  0.0,   0.0),   # NGC 2563   (railed)
+    (292, 3.59, 0.14,  2.60, 0.08,  22.1,  4.5),   # Abell 262  (railed)
+    (262, 1.30, 0.04,  0.87, 0.02,  22.4,  2.2),   # NGC 533
+    (353, 3.21, 0.10,  2.84, 0.06,  61.8,  7.2),   # MKW 4
+    (319, 2.36, 0.13,  1.56, 0.05,  26.4,  6.3),   # IC 1860
+    (226, 0.84, 0.07,  0.58, 0.06,  2.8,   6.7),   # NGC 5129
+    (208, 1.32, 0.16,  0.66, 0.03,  0.0,   0.0),   # NGC 4325   (railed)
+    (422, 5.51, 0.51,  3.35, 0.18,  0.0,   0.0),   # ESO 5520200 (railed)
+    (465, 7.38, 0.61,  4.79, 0.29,  22.5,  24.7),  # AWM 4      (railed)
+    (343, 5.97, 1.14,  3.45, 0.17,  0.0,   0.0),   # ESO 3060170 (railed)
+    (397, 1.85, 0.07,  2.85, 0.11,  0.0,   0.0),   # RGH 80
+    (405, 4.92, 1.64,  1.97, 0.19,  0.0,   0.0),   # MS 0116    (railed)
+    (710, 10.68, 0.51, 11.36, 0.29,  0.0,   0.0),  # Abell 2717
+    (584, 6.13, 3.30,  5.10, 0.41,  56.9,  10.5),  # RXJ 1159
+]
+_grp_pts = []  # list of dicts with nominal + 1σ uncertainty per group
+for _rk, _mt, _smt, _mg, _smg, _ms, _sms in _GRPS:
+    _mb     = _mg*1e12 + _ms*1e10
+    _smb    = math.sqrt((_smg*1e12)**2 + (_sms*1e10)**2)
+    _mt_sun = _mt*1e13;  _smt_sun = _smt*1e13
+    _gb  = G_CODE*_mb    / _rk**2 * CODE_TO_SI
+    _go  = G_CODE*_mt_sun/ _rk**2 * CODE_TO_SI
+    _sgb = G_CODE*_smb   / _rk**2 * CODE_TO_SI
+    _sgo = G_CODE*_smt_sun/_rk**2 * CODE_TO_SI
+    _req = (G_CODE*_mb*T0**2)**(1.0/3.0) / 1000.0
+    _sreq = _req * (1.0/3.0) * _smb / max(_mb, 1e-60)   # σ_r_eq from σ_M_b
+    if _go <= _gb:
+        continue
+    _gs_need = (_go**2 - _gb**2)/_gb
+    _fitted = _gs_need < _GS_MAX_SI
+    _sf = None
+    if _fitted:
+        _sf = _bisect_s_grp(_gb, _go, _rk)
+        if _sf is None:
+            continue
+        # 1σ propagation (fitted groups only):
+        #   s_lo: g_bar+σ, g_obs−σ → more g_bar, less g_obs → less g_s needed → smaller s
+        #   s_hi: g_bar−σ, g_obs+σ → less g_bar, more g_obs → more g_s needed → larger s
+        _go_lo = max(_go - _sgo, max(_gb + _sgb, 1e-60) * 1.001)
+        _sf_slo = _bisect_s_grp(_gb + _sgb, _go_lo, _rk)        # smaller s bound
+        _sf_shi = _bisect_s_grp(max(_gb - _sgb, 1e-60), _go + _sgo, _rk)  # larger s bound
+        _slo_yerr = (max(_sf - (_sf_slo if _sf_slo else s_min_ax), 0),
+                     max((_sf_shi if _sf_shi else _sf) - _sf, 0))
+        _shi_yerr = (max(1.0/_sf - (1.0/_sf_shi if _sf_shi else 1.0/_sf), 0),
+                     max((1.0/_sf_slo if _sf_slo else s_max_ax) - 1.0/_sf, 0))
+    else:
+        # Railated: find min nσ at (g_bar+nσ, g_obs−nσ) that becomes reachable.
+        # _sf is the edge s; the interval [_sf, 1/_sf] spans both branches.
+        # No additional error bars — the edge itself IS the uncertainty bound.
+        for _nsig in (1.0, 1.5, 2.0):
+            _gb_e = _gb + _nsig*_sgb;  _go_e = _go - _nsig*_sgo
+            if _go_e <= _gb_e: continue
+            if (_go_e**2 - _gb_e**2)/_gb_e < _GS_MAX_SI:
+                _sf = _bisect_s_grp(_gb_e, _go_e, _rk)
+                if _sf is not None:
+                    break
+        if _sf is None:
+            continue
+        _slo_yerr = (0, 0)
+        _shi_yerr = (0, 0)
+    _grp_pts.append({'req': _req, 'slo': _sf, 'shi': 1.0/_sf,
+                     'xerr': _sreq,
+                     'slo_yerr': _slo_yerr,
+                     'shi_yerr': _shi_yerr})
+
+_grp_lo  = [p['slo'] for p in _grp_pts]
+_grp_hi  = [p['shi'] for p in _grp_pts]
+_grp_req = [p['req'] for p in _grp_pts]
+print(f"X-ray groups: {len(_grp_pts)} points, s<1 range [{min(_grp_lo):.3f},{max(_grp_lo):.3f}], "
+      f"r_eq range [{min(_grp_req):.3f},{max(_grp_req):.3f}] Mpc")
+if _grp_pts:
+    _xrg_fc = _COL_XRG[0];  _xrg_ec = _COL_XRG[1]
+    for _p in _grp_pts:
+        _xe = _p['xerr']
+        ax1.errorbar(_p['req'], _p['slo'],
+                     xerr=_xe, yerr=[[_p['slo_yerr'][0]], [_p['slo_yerr'][1]]],
+                     fmt='*', color=_xrg_fc, ms=4.5, mec=_xrg_ec, mew=0.6,
+                     ecolor=_xrg_ec, elinewidth=0.9, capsize=2.2, alpha=0.80, zorder=6)
+        ax1.errorbar(_p['req'], _p['shi'],
+                     xerr=_xe, yerr=[[_p['shi_yerr'][0]], [_p['shi_yerr'][1]]],
+                     fmt='*', color=_xrg_fc, ms=4.5, mec=_xrg_ec, mew=0.6,
+                     ecolor=_xrg_ec, elinewidth=0.9, capsize=2.2, alpha=0.80, zorder=6)
+    _med_lo  = float(np.median(_grp_lo));  _med_hi = float(np.median(_grp_hi))
+    _med_req = float(np.median(_grp_req))
+    _xe = [[_med_req - min(_grp_req)], [max(_grp_req) - _med_req]]
+    ax1.errorbar(_med_req, _med_lo, xerr=_xe,
+                 yerr=[[_med_lo - min(_grp_lo)], [max(_grp_lo) - _med_lo]],
+                 fmt='*', color=_xrg_fc, ms=14, mec=_xrg_ec, mew=1.4,
+                 ecolor=_xrg_ec, elinewidth=1.1, capsize=3, zorder=9)
+    ax1.errorbar(_med_req, _med_hi, xerr=_xe,
+                 yerr=[[_med_hi - min(_grp_hi)], [max(_grp_hi) - _med_hi]],
+                 fmt='*', color=_xrg_fc, ms=14, mec=_xrg_ec, mew=1.4,
+                 ecolor=_xrg_ec, elinewidth=1.1, capsize=3, zorder=9)
 
 # ── Background shading: three candidate schemes (SHADE_MODE) ───────────────────
 S_REG = 1.0
 R_PROBE = 0.5                                       # KiDS lensing radius [Mpc]
-_re_g = np.logspace(np.log10(r_min_ax), np.log10(r_max_ax), 260)
+_re_g = np.logspace(-3, np.log10(r_max_ax), 300)  # start 0.001 Mpc for full shading
 _s_g  = np.logspace(np.log10(s_min_ax), np.log10(s_max_ax), 260)
 _RE, _SG = np.meshgrid(_re_g, _s_g)
 _xi2 = 1.0/_SG**3 + (1.0/12.0)*(R_PROBE/_RE)**3     # xi_s^2(s, r_eq) at r = R_PROBE
@@ -504,7 +743,7 @@ elif SHADE_MODE == 'multifield':          # union (max) of 3 g_s fields: equal b
         _xi = 1.0/_SG**3 + (1.0/12.0)*(_rs/_RE)**3
         _gmax = np.maximum(_gmax, (2.0*C_KMS/T0*_q(np.sqrt(_xi))*CODE_TO_SI)/A0_SI)
         # vertical label at the top, where this band is vertical (r_eq = r_sys/12^{1/3})
-        _rlab = max(_rs / 12.0**(1.0/3.0), r_min_ax*1.18)
+        _rlab = _rs / 12.0**(1.0/3.0)
         ax1.text(_rlab, s_max_ax*0.92, rf'$r_\mathrm{{sys}}={_rs:g}$ Mpc', rotation=90,
                  color='#333', fontsize=7.4, ha='center', va='top', fontstyle='italic', zorder=4,
                  path_effects=[pe.withStroke(linewidth=2.4, foreground='white')])
@@ -514,17 +753,12 @@ elif SHADE_MODE == 'multifield':          # union (max) of 3 g_s fields: equal b
     _GS_MAX = float(_gmax.max())                       # theoretical g_s^max/a0 (~5.5): cap the scale
     _pcm = ax1.pcolormesh(_RE, _SG, _gmax, cmap=_softmap, alpha=0.55, zorder=0,
                           shading='gouraud', vmin=0.0, vmax=_GS_MAX)
-    ax1.text(0.71, 0.82, 'Hubble-dominated', transform=ax1.transAxes, color='#555',
+    ax1.text(0.55, 0.82, 'Hubble-dominated', transform=ax1.transAxes, color='#555',
              fontsize=8.2, ha='center', va='center', fontstyle='italic', zorder=4, rotation=30)
-    ax1.text(0.80, 0.045, 'neighbourhood-dominated', transform=ax1.transAxes, color='#555',
+    ax1.text(1.2, 0.08, 'neighbourhood-dominated', color='#555',
              fontsize=8.2, ha='center', va='center', fontstyle='italic', zorder=4)
 
-ax1.axhline(S_REG,   color='#888888', lw=1.0, ls='--', zorder=2)
-ax1.axvline(R_CROSS, color='#888888', lw=1.0, ls='--', zorder=2)
-ax1.text(r_min_ax * 1.15, S_REG * 1.03, r'$s=1$ (regime change)',
-         color='#555', fontsize=8, va='bottom', ha='left')
-ax1.text(R_CROSS * 1.04, s_min_ax * 1.2, rf'$r_\mathrm{{eq}}={R_CROSS:.2f}$ Mpc',
-         color='#555', fontsize=8, va='bottom', ha='left', rotation=90)
+# axhline(s=1) and axvline(R_CROSS) removed — no finite crossing with s_sym formula
 
 # Markers at (map_x, s_min) on ax1 — filled = s<1 basin, open = s>1 basin.
 # s_min is the TRUE argmin of each chi2 curve (so they align with panel b).
@@ -537,37 +771,115 @@ for el in ELEMENTS:
     pref = min(cand, key=lambda kv: kv[1][1])[0]
     for k, pt in cand:
         if k == pref:
-            ax1.plot(el['map_x'], pt[0], el['mk'], color=el['color'], ms=el['ms']*1.5, zorder=7,
-                     mec='white', mew=1.0, path_effects=eff, label=(el['label'] or None))
+            ax1.plot(el['map_x'], pt[0], el['mk'], color=el['color'], ms=el['ms']*1.1, zorder=7,
+                     mec='white', mew=0.5, path_effects=eff, label=(el['label'] or None))
         else:
-            ax1.plot(el['map_x'], pt[0], el['mk'], color=el['color'], ms=el['ms']*1.5, zorder=7,
-                     mfc='none', mec=el['color'], mew=1.5, path_effects=eff)
+            ax1.plot(el['map_x'], pt[0], el['mk'], color=el['color'], ms=el['ms']*1.1, zorder=7,
+                     mfc='none', mec=el['color'], mew=0.8, path_effects=eff)
+
+# Y-error bars (Δχ²=1, 68% CI) for KiDS mass bins in panel (a)
+def _s_ci1(curve, s_best, lo, hi):
+    m = (s_arr >= lo) & (s_arr < hi)
+    c, s = curve[m], s_arr[m]
+    if len(c) == 0:
+        return s_best, s_best
+    chi2_min = c.min()
+    thresh = chi2_min + 1.0
+    i0 = int(np.argmin(np.abs(s - s_best)))
+    sl = s[0]
+    for i in range(i0 - 1, -1, -1):
+        if c[i] > thresh:
+            sl = 0.5 * (s[i] + s[i + 1]) if i + 1 < len(s) else s[i]
+            break
+    sh = s[-1]
+    for i in range(i0 + 1, len(s)):
+        if c[i] > thresh:
+            sh = 0.5 * (s[i - 1] + s[i]) if i - 1 >= 0 else s[i]
+            break
+    return sl, sh
+
+_all_curves = list(c_bins) + [c_all, c_late, c_early, c_blue, c_red]
+for _el, _cv in zip(ELEMENTS, _all_curves):
+    _mx = _el['map_x']
+    for _branch, _basin_lo, _basin_hi in [('lo', s_min_ax, 1.0), ('hi', 1.0, s_max_ax)]:
+        if _el[_branch] is None:
+            continue
+        _sbest = _el[_branch][0]
+        _sl, _sh = _s_ci1(_cv, _sbest, _basin_lo, _basin_hi)
+        ax1.errorbar(_mx, _sbest,
+                     yerr=[[_sbest - _sl], [_sh - _sbest]],
+                     fmt='none', ecolor=_el['color'], elinewidth=1.1, capsize=2.5, zorder=6)
 
 # ax1 axes formatting
-ax1.set_xscale('log'); ax1.set_yscale('log')
-ax1.set_xlim(r_min_ax, r_max_ax)
+_fwd_x = lambda x: np.log1p(np.log1p(np.maximum(x, 0.0)))
+_inv_x = lambda y: np.expm1(np.expm1(y))
+ax1.set_xscale('function', functions=(_fwd_x, _inv_x))
+ax1.set_yscale('log')
+ax1.set_xlim(0.0, r_max_ax)
 ax1.set_ylim(s_min_ax, s_max_ax)
 ax1.set_xlabel(r'dynamical radius $r_\mathrm{eq}\;[\mathrm{Mpc}]$')
 ax1.set_ylabel(r'neighbourhood parameter $s$')
 
-xt = [0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 3.0]
+xt = [0, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0]
 ax1.set_xticks(xt)
 ax1.set_xticklabels([f'{x:g}' for x in xt])
 ax1.xaxis.set_minor_locator(mticker.NullLocator())
 ax1.set_yticks(yt)
-ax1.set_yticklabels([f'{y:g}' for y in yt])
 ax1.yaxis.set_minor_locator(mticker.NullLocator())
+# NOTE: ax1 yticklabels are applied AFTER ax2 to avoid being reset by sharey behaviour.
+# See the block labelled "Re-apply ax1 y-tick labels" below.
 
-# Legend on ax1: branch lines + markers + filled/open (preferred/alternative) proxies
-proxy_filled = Line2D([0], [0], marker='o', color='#888', ms=7,
-                      mec='white', mew=0.8, ls='', label=r'preferred (min $\chi^2_\nu$)')
-proxy_open   = Line2D([0], [0], marker='o', color='#888', ms=7,
-                      mfc='none', mec='#888', mew=1.4, ls='', label='alternative basin')
-h1, l1 = ax1.get_legend_handles_labels()
-h1 += [proxy_filled, proxy_open]
-l1 += [proxy_filled.get_label(), proxy_open.get_label()]
-ax1.legend(h1, l1, fontsize=7.2, loc='upper right', ncol=1,
-           handlelength=1.4, labelspacing=0.62, markerscale=0.78, borderaxespad=0.8)
+# ── Legend 1: small top-right — filling criteria only ─────────────────────────
+_ms_lc = 9   # marker size for legend circles (both same)
+proxy_filled = Line2D([0], [0], marker='o', color='#666', ms=_ms_lc,
+                      mec='white', mew=0.9, ls='', label=r'preferred (min $\chi^2_\nu$)')
+proxy_open   = Line2D([0], [0], marker='o', color='none', ms=_ms_lc,
+                      mec='#666', mew=1.5, ls='', label='alternative basin')
+leg_fill = ax1.legend(handles=[proxy_filled, proxy_open],
+                      title='Filling criteria', title_fontsize=7.2,
+                      fontsize=7.0, loc='upper right', ncol=1,
+                      handlelength=1.2, labelspacing=0.5, borderaxespad=0.8, framealpha=0.92)
+leg_fill.get_title().set_fontweight('bold')
+ax1.add_artist(leg_fill)
+
+# ── Legend 2: main bottom-right — 4 columns (col-major order: each col top→bottom) ──
+_SP = _SYS_COL['SPARC'];   _MW = _SYS_COL['Milky Way']
+_XC = _SYS_COL['X-COP'];   _HF = _SYS_COL['HIFLUGCS'];  _GW = _SYS_COL['gal-gal WL']
+_blank = Line2D([], [], color='none', linewidth=0, label='')
+def _mk(marker, color, ec, label, ms=9):
+    return Line2D([], [], marker=marker, color=color, ms=ms, ls='',
+                  mec=ec, mew=0.8, label=label)
+# Arranged in column-major order (matplotlib fills each column top→bottom with ncol=4)
+_l2 = [
+    # Column 1: RAR KiDS bins
+    Line2D([], [], color='none', label=r'$\mathbf{RAR\ KiDS\ bins}$'),
+    _mk('o', '#3498db', 'white', 'Bin 1'),
+    _mk('o', '#27ae60', 'white', 'Bin 2'),
+    _mk('o', '#e67e22', 'white', 'Bin 3'),
+    _mk('D', '#222222', 'white', 'Global'),
+    # Column 2: RAR KiDS morfo
+    Line2D([], [], color='none', label=r'$\mathbf{RAR\ KiDS\ morfo.}$'),
+    _mk('^', '#2ecc71', 'white', r'Late ($n\!<\!2.5$)'),
+    _mk('s', '#8e44ad', 'white', r'Early ($n\!\geq\!2.5$)'),
+    _mk('o', '#2980b9', 'white', r'Blue ($u\!-\!r$)'),
+    _mk('o', '#e91e63', 'white', r'Red ($u\!-\!r$)'),
+    # Column 3: clusters + gal-gal WL
+    Line2D([], [], color='none', label=r'$\mathbf{Other\ systems}$'),
+    _mk('*', _XC[0], _XC[1], 'X-COP clusters', ms=11),
+    _mk('*', _HF[0], _HF[1], 'HIFLUGCS clusters', ms=11),
+    _mk('*', _COL_XRG[0], _COL_XRG[1], 'X-ray groups', ms=11),
+    _mk('*', _GW[0], _GW[1], r'gal--gal WL', ms=11),
+    # Column 4: galaxies (MW last = darkest blue)
+    _blank,
+    _mk('*', _SP[0], _SP[1], 'SPARC galaxies', ms=11),
+    _mk('*', _COL_MIG[0], _COL_MIG[1], 'MIGHTEE', ms=11),
+    _mk('*', _COL_UDG[0], _COL_UDG[1], 'UDGs', ms=11),
+    _mk('*', _MW[0], _MW[1], 'Milky Way', ms=11),
+]
+ax1.legend(_l2, [h.get_label() for h in _l2],
+           fontsize=6.8, loc='lower right', ncol=4,
+           handlelength=1.0, labelspacing=0.35, columnspacing=0.8,
+           handletextpad=0.4, borderaxespad=0.6, framealpha=0.92)
 # g_s/a_0 colour-scale legend for the panel-(a) shading, in the gap between the two panels
 if SHADE_MODE == 'multifield':
     _cax = fig.add_axes([0.548, 0.14, 0.013, 0.29])
@@ -605,6 +917,8 @@ ax2.loglog(c_blue,  s_arr, color='#2980b9', lw=1.8, ls=':',
            label=r'Blue ($u-r$)', zorder=4)
 ax2.loglog(c_red,   s_arr, color='#c0392b', lw=1.8, ls=':',
            label=r'Red ($u-r$)', zorder=4)
+ax2.loglog(_c_udg, s_arr, color='0.45', lw=3.5, alpha=0.14, ls='-',
+           label=r'UDGs (6, $s\!<\!1$)', zorder=3)
 # NOTE: the per-cluster chi2_nu(s) haze (both HIFLUGCS and X-COP) is NOT drawn.
 # For X-COP a single scalar s is not the right model (hydrostatic profiles -- see xcop_rnei_nsig.py);
 # for HIFLUGCS the reduced-chi2 haze added no information and cluttered the panel.
@@ -623,10 +937,16 @@ for el in ELEMENTS:
             ax2.plot(pt[1], pt[0], el['mk'], color=el['color'], ms=el['ms']*0.7,
                      zorder=8, mfc='none', mec=el['color'], mew=1.2)
 
+# UDG minimum marker in panel (b)
+_chi2_udg_min = float(_c_udg.min())
+_s_udg_min = float(s_arr[_c_udg.argmin()])
+ax2.plot(_chi2_udg_min, _s_udg_min, '*', color='#ffe14d', ms=9, mec='#6e5200', mew=0.8, zorder=9)
+
 # ax2 axes formatting
-ax2.set_xscale('log'); ax2.set_yscale('log')
+ax2.set_xscale('log')
+ax2.set_yscale('log')
 chi2_lo = min(c_all.min(), c_late.min(), c_early.min(), c_blue.min(), c_red.min(),
-              min(cb.min() for cb in c_bins)) * 0.55
+              min(cb.min() for cb in c_bins), _c_udg.min()) * 0.55
 chi2_hi = 200.0
 ax2.set_xlim(max(chi2_lo, 0.18), chi2_hi)
 ax2.set_ylim(s_min_ax, s_max_ax)
@@ -634,7 +954,22 @@ ax2.set_xlabel(r'$\chi^2_\nu$ (log-space residuals)')
 # y-axis ticks on right side of panel (b)
 ax2.set_yticks(yt)
 ax2.tick_params(labelleft=False, left=True, labelright=True, right=True)
-ax2.set_yticklabels([f'{y:g}' for y in yt])
+def _y2lbl(y):
+    if abs(y - _S_CROSS)/(1e-12+_S_CROSS) < 0.005 or abs(y - 1.0/_S_CROSS)/(1e-12+1.0/_S_CROSS) < 0.005:
+        return ''   # guide ticks: no label on right axis
+    return f'{y:g}'
+ax2.set_yticklabels([_y2lbl(y) for y in yt])
+
+# ── Re-apply ax1 y-tick labels (must come AFTER ax2 block to survive sharey reset) ──
+def _y1lbl(y):
+    if abs(y - _S_CROSS) / _S_CROSS < 0.005:           return r'$2.29\!\to$'
+    if abs(y - 1.0/_S_CROSS) / (1.0/_S_CROSS) < 0.005: return r'$0.44\!\to$'
+    return f'{y:g}'
+ax1.set_yticklabels([_y1lbl(y) for y in yt])
+for _tlbl in ax1.get_yticklabels():
+    if r'\to' in _tlbl.get_text():
+        _tlbl.set_color('0.30'); _tlbl.set_fontstyle('italic'); _tlbl.set_fontsize(8.5)
+
 xt2 = [1, 2, 5, 10, 20, 50, 100]
 ax2.set_xticks(xt2)
 ax2.set_xticklabels([str(x) for x in xt2])
@@ -663,6 +998,13 @@ for el in ELEMENTS:
             color=el['color'], ls=':', lw=0.8,
             alpha=0.55 if k == pref else 0.35, zorder=1)
         fig.add_artist(con)
+
+# UDG cross-panel dashed line at s_udg_min
+_con_udg = ConnectionPatch(
+    xyA=(0.1117, _s_udg_min), coordsA=ax1.transData,
+    xyB=(_chi2_udg_min, _s_udg_min), coordsB=ax2.transData,
+    color='0.55', ls='--', lw=0.9, alpha=0.70, zorder=1)
+fig.add_artist(_con_udg)
 
 # ── Save ──────────────────────────────────────────────────────────────────────
 fig.savefig(DST, dpi=200, bbox_inches='tight')

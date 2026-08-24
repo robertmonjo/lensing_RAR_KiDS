@@ -30,6 +30,12 @@ import csv
 import math
 import numpy as np
 import hmg_model as h
+import fit_hmg_udg as _F_mightee
+
+# MIGHTEE UDGs: joint HMG fit over the 6 Ponomareva+2021 galaxies (one V_out each).
+# s_best=0.0098 minimises chi2 (velocity space); nu = N - k = 6 - 1 = 5.
+_MIGHTEE_NU = len(_F_mightee.DATA) - 1          # 5
+_MIGHTEE_CHI2NU = _F_mightee.chi2_hmg(0.0098) / _MIGHTEE_NU   # ~1.72
 
 G = 4.30091727e-6      # (km/s)^2 kpc / Msun
 T0 = 14.11             # kpc / (km/s)
@@ -319,6 +325,12 @@ SYSTEMS = [
     # over the s->inf asymptotic branch (chi2=17.1); s interval from Delta chi2=1.
     ref_row(r"Gas-rich UDGs",       1.6e9,  9,   0.0098, None, None, "Monjo2026udg",
             s_disp="$0.010^{+0.008}_{-0.010}$", nsig_fn=nsig_udg),
+    # MIGHTEE Ponomareva+2021: 6 gas-rich UDGs with one V_out each at R_HI/2.
+    # Displayed s is per-galaxy median (individual bisection); chi2_nu is from the joint fit
+    # at s_best=0.0098 (velocity space, nu=5). s_lo/s_hi=None -> xi2 shown without interval.
+    ref_row(r"MIGHTEE gas-rich UDGs", 5.8e9, 19, 0.19, None, None, "Ponomareva2021",
+            s_disp=r"$0.19^{+0.09}_{-0.10}$",
+            nsig_fn=lambda s: math.sqrt(_MIGHTEE_CHI2NU)),
     ref_row(r"Galaxy--galaxy WL",   1.0e11, 500, float(_gw["s"]), float(_gw["s_lo"]), float(_gw["s_hi"]),
             "Monjo2025", nsig_fn=nsig_ggwl),  # Mistele, no-z; s from reference_systems.csv
     # SPARC: distributional medians of the 50 galaxies (matches Fig. A.2): r_eq~284 kpc
@@ -330,6 +342,14 @@ SYSTEMS = [
             nsig_fn=lambda s: _xc_nsig),
     ref_row(r"HIFLUGCS clust.",     7.5e13, 800, float(_hi["s"]), float(_hi["s_lo"]), float(_hi["s_hi"]),
             "MonjoBanik2025RAR", nsig_fn=nsig_hiflugcs),
+    # X-ray galaxy groups (Gastaldello+2007): 16 groups, one M_tot point each at r_Delta.
+    # chi2_nu not quoted: scatter is physical (each group has its own neighbourhood density).
+    # s=0.733 gives xi2=2.54 and gs/a0=3.64 matching Table A.1. Displayed as s=0.73 (rounded).
+    # Note: vN, req, seq from derive(2.4e12, 331, 0.733) differ from the manually-edited
+    # main.tex row (which used a different baryonic-mass estimator for vN).
+    ref_row(r"X-ray galaxy groups", 2.4e12, 331, 0.733, None, None, "Gastaldello2007",
+            s_disp=r"$0.73^{+0.20}_{-0.18}$",
+            nsig_fn=None),
     # --- KiDS subsamples (this work) ---
     kids_row("Global",              r"RAR KiDS all",              500, None),
     kids_row("Bin 1",               r"RAR KiDS bin 1",           500, None),
@@ -382,7 +402,7 @@ for sy in SYSTEMS:
     gs_str = pm(d["gs"], gs_lo if sy["s_lo"] else None, gs_hi if sy["s_hi"] else None, 2)
     ns = sy.get("nsig")
     chi2nu = ns**2 if ns is not None else None        # column reports chi2_nu = (n_sigma)^2
-    ns_str = f"{chi2nu:.2f}" if chi2nu is not None else "--"
+    ns_str = f"{chi2nu:.2f}" if chi2nu is not None else "---"
     name = f"{sy['name']} \\citep{{{sy['cite']}}}" if sy["cite"] else sy["name"]
     if sy["work"]:
         name = sy["name"] + " [this work]"
