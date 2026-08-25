@@ -342,13 +342,12 @@ SYSTEMS = [
             nsig_fn=lambda s: _xc_nsig),
     ref_row(r"HIFLUGCS clust.",     7.5e13, 800, float(_hi["s"]), float(_hi["s_lo"]), float(_hi["s_hi"]),
             "MonjoBanik2025RAR", nsig_fn=nsig_hiflugcs),
-    # X-ray galaxy groups (Gastaldello+2007): 16 groups, one M_tot point each at r_Delta.
-    # chi2_nu not quoted: scatter is physical (each group has its own neighbourhood density).
-    # s=0.733 gives xi2=2.54 and gs/a0=3.64 matching Table A.1. Displayed as s=0.73 (rounded).
-    # Note: vN, req, seq from derive(2.4e12, 331, 0.733) differ from the manually-edited
-    # main.tex row (which used a different baryonic-mass estimator for vN).
-    ref_row(r"X-ray galaxy groups", 2.4e12, 331, 0.733, None, None, "Gastaldello2007",
-            s_disp=r"$0.73^{+0.20}_{-0.18}$",
+    # X-ray galaxy groups (Gastaldello+2007): 16 groups, 15-point NFW fit each.
+    # Median s=1.000 (12/16 groups hit s=1 boundary); p16=0.993, p84=1.000.
+    # s=1.000 gives xi2=1.00 and gs/a0=5.48 (q_max at xi2=1).
+    # chi2_nu not quoted: per-group values vary widely (0.55-12.7) with f_bar.
+    ref_row(r"X-ray galaxy groups", 2.4e12, 331, 1.000, None, None, "Gastaldello2007",
+            s_disp=r"$1.00^{+0.00}_{-0.01}$",
             nsig_fn=None),
     # --- KiDS subsamples (this work) ---
     kids_row("Global",              r"RAR KiDS all",              500, None),
