@@ -345,10 +345,10 @@ SYSTEMS = [
     # X-ray galaxy groups (Gastaldello+2007): 16 groups, 15-point NFW fit each.
     # Median s=1.000 (12/16 groups hit s=1 boundary); p16=0.993, p84=1.000.
     # s=1.000 gives xi2=1.00 and gs/a0=5.48 (q_max at xi2=1).
-    # chi2_nu not quoted: per-group values vary widely (0.55-12.7) with f_bar.
+    # chi2_nu=2.53: sample median over 16 groups (fit_gastaldello_s.py, sigma_log=0.10).
     ref_row(r"X-ray galaxy groups", 2.4e12, 331, 1.000, None, None, "Gastaldello2007",
             s_disp=r"$1.00^{+0.00}_{-0.01}$",
-            nsig_fn=None),
+            nsig_fn=lambda s: math.sqrt(2.53)),
     # --- KiDS subsamples (this work) ---
     kids_row("Global",              r"RAR KiDS all",              500, None),
     kids_row("Bin 1",               r"RAR KiDS bin 1",           500, None),
