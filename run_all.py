@@ -39,6 +39,9 @@ STEPS = [
 ]
 
 # Auxiliary/exploratory scripts deliberately NOT in STEPS (run by hand if needed):
+#   10_lin_chi2_table2.py   -- recomputes chi2_nu_lin for all Table 2 rows (N=30/N=40,
+#                              HMG/MICE/MOND); prints to stdout only (no output files).
+#                              Values cross-check the LIN column of tab:mice_comparison.
 #   make_fig_gs_fields.py   -- diagnostic; not in manuscript
 #   make_fig_xi_req.py      -- diagnostic; not in manuscript
 #   xcop_s_rnei_joint.py    -- robustness test: 2D (s,r_nei) joint fit + chi2(s) profile for X-COP
