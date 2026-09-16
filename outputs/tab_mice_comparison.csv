@@ -1,6 +1,11 @@
-model,N,chi2,chi2nu,source
-"HMG (s=0.486, fitted to subset)",30,45.4,1.56,this work
-MICE LambdaCDM (Crocce+2015),30,49.7,1.66,literature (Brouwer+2021)
-"HMG per-bin, bins 2-4",30,29.7,1.1,this work
-"HMG per-bin, bins 1-4",40,33.5,0.93,this work
-"MICE LambdaCDM, all bins (Crocce+2015)",33,51.3,1.55,literature (Brouwer+2021)
+model,N,k,chi2_nu_log,chi2_nu_lin,source
+"HMG (s=0.486, fitted, k=1)",30,1,1.56,1.9,this work
+MICE LambdaCDM B21 (k=0),30,0,--,1.66,Brouwer+2021
+"MICE reproduced (ztrue, diagonal, k=0)",30,0,12.07,7.09,MICE_n-body pipeline (Nieve)
+"MICE best case (equicorr rho=0.065, k=0)",30,0,3.15,1.85,MICE_n-body pipeline (Nieve)
+"MOND (1.73 a0*, k=1)",30,1,3.18,5.31,this work
+HMG per-bin (k=4),40,4,0.93,1.3,this work
+"HMG (s=0.462, fitted, k=1)",40,1,2.66,4.15,this work
+"MICE reproduced (ztrue, diagonal, k=0)",40,0,16.42,7.61,MICE_n-body pipeline (Nieve)
+"MICE best case (equicorr rho=0.065, k=0)",40,0,2.66,1.65,MICE_n-body pipeline (Nieve)
+"MOND (1.58 a0*, k=1)",40,1,4.27,7.21,this work

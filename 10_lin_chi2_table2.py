@@ -34,6 +34,7 @@ Brouwer et al. 2021, A&A 650, A113
 Monjo 2025 (this paper)
 """
 
+import csv
 import sys
 import os
 import numpy as np
@@ -181,3 +182,45 @@ print(f"{'HMG (s=0.462, fitted, k=1)':<45} {N40:>3} {c_hmg40_lin/(N40-1):>6.2f} 
 print(f"{'MICE repro (ztrue, diag, k=0)':<45} {N40:>3} {'7.61':>6} {'16.42':>6}")
 print(f"{'MICE best case (equicorr rho=0.065, k=0)':<45} {N40:>3} {'1.65':>6} {'2.66':>6}")
 print(f"{'MOND (1.58 a0*, k=1)':<45} {N40:>3} {c_mond40_lin/(N40-1):>6.2f} {c_mond40_log/(N40-1):>6.2f}")
+
+# ─── Write CSV (tab_mice_comparison.csv replaces the old 5-row version) ─────
+_OUT = os.path.join(_HERE, "outputs")
+os.makedirs(_OUT, exist_ok=True)
+
+_ROWS = [
+    # N=30 outer-radii subset (bins 2-4)
+    {"model": f"HMG (s={S_30}, fitted, k=1)",             "N": N30, "k": 1,
+     "chi2_nu_log": round(c_hmg30_log / (N30-1), 2),
+     "chi2_nu_lin": round(c_hmg30_lin / (N30-1), 2),    "source": "this work"},
+    {"model": "MICE LambdaCDM B21 (k=0)",                 "N": N30, "k": 0,
+     "chi2_nu_log": "--", "chi2_nu_lin": 1.66,           "source": "Brouwer+2021"},
+    {"model": "MICE reproduced (ztrue, diagonal, k=0)",   "N": N30, "k": 0,
+     "chi2_nu_log": 12.07, "chi2_nu_lin": 7.09,          "source": "MICE_n-body pipeline (Nieve)"},
+    {"model": "MICE best case (equicorr rho=0.065, k=0)", "N": N30, "k": 0,
+     "chi2_nu_log": 3.15,  "chi2_nu_lin": 1.85,          "source": "MICE_n-body pipeline (Nieve)"},
+    {"model": f"MOND (1.73 a0*, k=1)",                    "N": N30, "k": 1,
+     "chi2_nu_log": round(c_mond30_log / (N30-1), 2),
+     "chi2_nu_lin": round(c_mond30_lin / (N30-1), 2),   "source": "this work"},
+    # N=40 outer-radii subset (bins 1-4)
+    {"model": "HMG per-bin (k=4)",                        "N": N40, "k": 4,
+     "chi2_nu_log": round(c_log_pb / (N40-4), 2),
+     "chi2_nu_lin": round(c_lin_pb / (N40-4), 2),        "source": "this work"},
+    {"model": f"HMG (s={S_40}, fitted, k=1)",             "N": N40, "k": 1,
+     "chi2_nu_log": round(c_hmg40_log / (N40-1), 2),
+     "chi2_nu_lin": round(c_hmg40_lin / (N40-1), 2),    "source": "this work"},
+    {"model": "MICE reproduced (ztrue, diagonal, k=0)",   "N": N40, "k": 0,
+     "chi2_nu_log": 16.42, "chi2_nu_lin": 7.61,          "source": "MICE_n-body pipeline (Nieve)"},
+    {"model": "MICE best case (equicorr rho=0.065, k=0)", "N": N40, "k": 0,
+     "chi2_nu_log": 2.66,  "chi2_nu_lin": 1.65,          "source": "MICE_n-body pipeline (Nieve)"},
+    {"model": f"MOND (1.58 a0*, k=1)",                    "N": N40, "k": 1,
+     "chi2_nu_log": round(c_mond40_log / (N40-1), 2),
+     "chi2_nu_lin": round(c_mond40_lin / (N40-1), 2),   "source": "this work"},
+]
+
+_FIELDS = ["model", "N", "k", "chi2_nu_log", "chi2_nu_lin", "source"]
+_csv_path = os.path.join(_OUT, "tab_mice_comparison.csv")
+with open(_csv_path, "w", newline="") as _fh:
+    _w = csv.DictWriter(_fh, fieldnames=_FIELDS)
+    _w.writeheader()
+    _w.writerows(_ROWS)
+print(f"\nWrote {_csv_path}")
