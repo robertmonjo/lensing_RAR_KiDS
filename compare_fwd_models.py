@@ -165,23 +165,26 @@ for i, (bdata, mbar, mstar, s, mh_shmr, mh) in enumerate(
           f"s_HMG = {s}, Mh_fit = {mh:.3e} M_sun")
 
     # ── SIS chi2 (standard kernel) ──────────────────────────────────────────
-    c_hmg_sis  = chi2_nu(h.gobs_hmg(R_kpc, mbar, s), bdata)
-    c_mond_sis = chi2_nu(h.mond_gobs(h.gbar_si(R_arr, mbar)), bdata)
-    c_cdm_sis  = chi2_nu(h.gobs_cdm(R_kpc, mbar, mh, XI0), bdata)
+    c_hmg_sis       = chi2_nu(h.gobs_hmg(R_kpc, mbar, s), bdata)
+    c_mond_sis      = chi2_nu(h.mond_gobs(h.gbar_si(R_arr, mbar)), bdata)
+    c_cdm_sis       = chi2_nu(h.gobs_cdm(R_kpc, mbar, mh, XI0), bdata)      # fitted Mh (Table 1)
+    c_cdm_shmr_sis  = chi2_nu(h.gobs_cdm(R_kpc, mbar, mh_shmr, XI0), bdata) # SHMR Mh (§3)
 
     # ── FWD chi2 (Abel projection) ──────────────────────────────────────────
-    g_fwd_hmg  = compute_g_fwd(R_arr, lambda r: g_hmg_fn(r, mbar, s),  "HMG ")
-    g_fwd_mond = compute_g_fwd(R_arr, lambda r: g_mond_fn(r, mbar),     "MOND")
-    g_fwd_cdm  = compute_g_fwd(R_arr, lambda r: g_cdm_fn(r, mbar, mh, XI0), "CDM ")
+    g_fwd_hmg       = compute_g_fwd(R_arr, lambda r: g_hmg_fn(r, mbar, s),        "HMG     ")
+    g_fwd_mond      = compute_g_fwd(R_arr, lambda r: g_mond_fn(r, mbar),           "MOND    ")
+    g_fwd_cdm       = compute_g_fwd(R_arr, lambda r: g_cdm_fn(r, mbar, mh, XI0),      "CDM-fit ")
+    g_fwd_cdm_shmr  = compute_g_fwd(R_arr, lambda r: g_cdm_fn(r, mbar, mh_shmr, XI0), "CDM-SHMR")
 
-    c_hmg_fwd  = chi2_nu(g_fwd_hmg,  bdata)
-    c_mond_fwd = chi2_nu(g_fwd_mond, bdata)
-    c_cdm_fwd  = chi2_nu(g_fwd_cdm,  bdata)
+    c_hmg_fwd       = chi2_nu(g_fwd_hmg,       bdata)
+    c_mond_fwd      = chi2_nu(g_fwd_mond,      bdata)
+    c_cdm_fwd       = chi2_nu(g_fwd_cdm,       bdata)      # fitted Mh (Table 1)
+    c_cdm_shmr_fwd  = chi2_nu(g_fwd_cdm_shmr,  bdata)      # SHMR Mh (§3 / A.4)
 
-    # ── Ranking ─────────────────────────────────────────────────────────────
-    models = {"HMG": (c_hmg_sis, c_hmg_fwd),
-              "MOND": (c_mond_sis, c_mond_fwd),
-              "CDM":  (c_cdm_sis,  c_cdm_fwd)}
+    # ── Ranking (SHMR CDM for global comparison, as in §3) ──────────────────
+    models = {"HMG":  (c_hmg_sis,      c_hmg_fwd),
+              "MOND": (c_mond_sis,     c_mond_fwd),
+              "CDM":  (c_cdm_shmr_sis, c_cdm_shmr_fwd)}
     rank_sis = sorted(models, key=lambda m: models[m][0])
     rank_fwd = sorted(models, key=lambda m: models[m][1])
 
@@ -190,6 +193,7 @@ for i, (bdata, mbar, mstar, s, mh_shmr, mh) in enumerate(
         rf = rank_fwd.index(model) + 1
         print(f"  {i:4d}  {model:<5s}  {cs:11.3f}   {cf:11.3f}   {cf/cs:6.3f}   "
               f"  #{rs}         #{rf}")
+    print(f"       CDM-fit SIS={c_cdm_sis:.3f}  FWD={c_cdm_fwd:.3f}  (per-bin fitted Mh, matches Table 1)")
 
     rank_changed = (rank_sis != rank_fwd)
     print(f"  -> Rank SIS: {' > '.join(rank_sis)}")
@@ -197,38 +201,46 @@ for i, (bdata, mbar, mstar, s, mh_shmr, mh) in enumerate(
 
     results.append({
         "bin": i, "logMstar": np.log10(mstar), "s": s,
-        "HMG_SIS": c_hmg_sis, "MOND_SIS": c_mond_sis, "CDM_SIS": c_cdm_sis,
-        "HMG_FWD": c_hmg_fwd, "MOND_FWD": c_mond_fwd, "CDM_FWD": c_cdm_fwd,
+        "HMG_SIS": c_hmg_sis, "MOND_SIS": c_mond_sis,
+        "CDM_SIS": c_cdm_sis, "CDM_SHMR_SIS": c_cdm_shmr_sis,
+        "HMG_FWD": c_hmg_fwd, "MOND_FWD": c_mond_fwd,
+        "CDM_FWD": c_cdm_fwd, "CDM_SHMR_FWD": c_cdm_shmr_fwd,
         "rank_changed": rank_changed,
     })
 
 # ── Global summary ────────────────────────────────────────────────────────────
 print()
 print("=" * 72)
-print("GLOBAL (all 4 bins combined, chi2_total / (4*14))")
-N_tot = sum(len(b) for b in BINS) - len(BINS)   # 4*14 = 56
+print("GLOBAL (all 4 bins combined, chi2_total / (4*14) = chi2_total / 56)")
+print("CDM uses Moster+2013 SHMR halo masses (consistent with paper §3 and A.4)")
+N_tot = sum(len(b) for b in BINS) - len(BINS)   # 4*15 - 4 = 56
 
-c_hmg_sis_g  = sum(h._chi2_arr(h.gobs_hmg(b[:,0]*MPC_TO_KPC, mb, s), b)
-                   for b, mb, s in zip(BINS, MBAR, S_BIN_HMG)) / N_tot
-c_mond_sis_g = sum(h._chi2_arr(h.mond_gobs(h.gbar_si(b[:,0], mb)), b)
-                   for b, mb in zip(BINS, MBAR)) / N_tot
-c_cdm_sis_g  = sum(h._chi2_arr(h.gobs_cdm(b[:,0]*MPC_TO_KPC, mb, mh, XI0), b)
-                   for b, mb, mh in zip(BINS, MBAR, MH_FIT)) / N_tot
+c_hmg_sis_g      = sum(h._chi2_arr(h.gobs_hmg(b[:,0]*MPC_TO_KPC, mb, s), b)
+                       for b, mb, s in zip(BINS, MBAR, S_BIN_HMG)) / N_tot
+c_mond_sis_g     = sum(h._chi2_arr(h.mond_gobs(h.gbar_si(b[:,0], mb)), b)
+                       for b, mb in zip(BINS, MBAR)) / N_tot
+c_cdm_sis_shmr_g = sum(h._chi2_arr(h.gobs_cdm(b[:,0]*MPC_TO_KPC, mb, mh, XI0), b)
+                       for b, mb, mh in zip(BINS, MBAR, MH_MOSTER)) / N_tot
+c_cdm_sis_fit_g  = sum(h._chi2_arr(h.gobs_cdm(b[:,0]*MPC_TO_KPC, mb, mh, XI0), b)
+                       for b, mb, mh in zip(BINS, MBAR, MH_FIT)) / N_tot
 
-print(f"  chi2_nu SIS: HMG = {c_hmg_sis_g:.3f}  MOND = {c_mond_sis_g:.3f}  CDM = {c_cdm_sis_g:.3f}")
+print(f"  chi2_nu SIS (SHMR CDM): HMG = {c_hmg_sis_g:.3f}  MOND = {c_mond_sis_g:.3f}  CDM = {c_cdm_sis_shmr_g:.3f}")
+print(f"  chi2_nu SIS (fit  CDM): CDM = {c_cdm_sis_fit_g:.3f}  (per-bin fitted Mh, Table 1 reference)")
 
-c_hmg_fwd_g  = sum(r["HMG_FWD"]  * 14 for r in results) / N_tot
-c_mond_fwd_g = sum(r["MOND_FWD"] * 14 for r in results) / N_tot
-c_cdm_fwd_g  = sum(r["CDM_FWD"]  * 14 for r in results) / N_tot
+c_hmg_fwd_g      = sum(r["HMG_FWD"]       * 14 for r in results) / N_tot
+c_mond_fwd_g     = sum(r["MOND_FWD"]      * 14 for r in results) / N_tot
+c_cdm_fwd_shmr_g = sum(r["CDM_SHMR_FWD"] * 14 for r in results) / N_tot
+c_cdm_fwd_fit_g  = sum(r["CDM_FWD"]       * 14 for r in results) / N_tot
 
-print(f"  chi2_nu FWD: HMG = {c_hmg_fwd_g:.3f}  MOND = {c_mond_fwd_g:.3f}  CDM = {c_cdm_fwd_g:.3f}")
+print(f"  chi2_nu FWD (SHMR CDM): HMG = {c_hmg_fwd_g:.3f}  MOND = {c_mond_fwd_g:.3f}  CDM = {c_cdm_fwd_shmr_g:.3f}")
+print(f"  chi2_nu FWD (fit  CDM): CDM = {c_cdm_fwd_fit_g:.3f}  (per-bin fitted Mh, Table 1 reference)")
 
 rank_sis_g = sorted(["HMG","MOND","CDM"],
-                     key=lambda m: {"HMG":c_hmg_sis_g,"MOND":c_mond_sis_g,"CDM":c_cdm_sis_g}[m])
+                     key=lambda m: {"HMG":c_hmg_sis_g,"MOND":c_mond_sis_g,"CDM":c_cdm_sis_shmr_g}[m])
 rank_fwd_g = sorted(["HMG","MOND","CDM"],
-                     key=lambda m: {"HMG":c_hmg_fwd_g,"MOND":c_mond_fwd_g,"CDM":c_cdm_fwd_g}[m])
-print(f"  Ranking SIS: {' < '.join(rank_sis_g)}")
-print(f"  Ranking FWD: {' < '.join(rank_fwd_g)}  {'*** CHANGED ***' if rank_sis_g != rank_fwd_g else '(unchanged)'}")
+                     key=lambda m: {"HMG":c_hmg_fwd_g,"MOND":c_mond_fwd_g,"CDM":c_cdm_fwd_shmr_g}[m])
+print(f"  Ranking SIS (SHMR): {' < '.join(rank_sis_g)}")
+print(f"  Ranking FWD (SHMR): {' < '.join(rank_fwd_g)}  {'*** CHANGED ***' if rank_sis_g != rank_fwd_g else '(unchanged)'}")
 
 # ── Save CSV ──────────────────────────────────────────────────────────────────
 import csv
