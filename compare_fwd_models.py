@@ -28,6 +28,8 @@ from scipy.interpolate import interp1d
 from scipy.optimize import minimize_scalar
 import hmg_model as h
 
+_trapz = getattr(np, 'trapezoid', np.trapz)   # np.trapezoid added in NumPy 2.0
+
 # ── Physical constants ────────────────────────────────────────────────────────
 G_SI     = h.G_SI          # m^3 kg^-1 s^-2
 MSUN_KG  = h.MSUN_KG       # kg per M_sun
@@ -144,7 +146,7 @@ def compute_g_fwd(R_mpc_arr, g_callable, label="", R_lo=0.001):
     dS = np.zeros(len(R_arr))
     for i, R in enumerate(R_arr):
         R_int    = np.linspace(R_lo, R, 1000)
-        integral = np.trapezoid(R_int * sig_at(R_int), R_int)
+        integral = _trapz(R_int * sig_at(R_int), R_int)
         dS[i]    = 2.0 / R**2 * integral - sig_at(R)
     print("done")
     return ESD2G * dS
