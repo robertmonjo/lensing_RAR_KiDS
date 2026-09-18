@@ -49,17 +49,28 @@ MH_MOSTER = [h.mhalo_from_mstar(ms) for ms in MSTAR]
 
 # ── CDM global xi0 ───────────────────────────────────────────────────────────
 def _fit_xi0_global():
+    """Global xi0 fit with SHMR Mh fixed — same as make_tables.fit_xi0_global."""
     def chi2_total(xi0):
         return sum(
             h._chi2_arr(h.gobs_cdm(h._r_kpc(b), ms, mh, xi0), b)
             for b, ms, mh in zip(BINS, MBAR, MH_MOSTER)
         )
-    res = minimize_scalar(chi2_total, bounds=(0.01, 5.0), method='bounded')
+    res = minimize_scalar(chi2_total, bounds=(0.1, 30.0), method='bounded')
     return res.x
+
+def _fit_mh_per_bin(bdata, ms, xi0):
+    """Per-bin Mh fit (log scale) with xi0 fixed — same as make_tables.cdm_bin."""
+    f = lambda lmh: h._chi2_arr(h.gobs_cdm(h._r_kpc(bdata), ms, 10**lmh, xi0), bdata)
+    res = minimize_scalar(f, bounds=(10.0, 14.0), method='bounded')
+    return 10**res.x   # best-fit Mh [M_sun]
 
 print("Fitting CDM xi0 globally ... ", end="", flush=True)
 XI0 = _fit_xi0_global()
 print(f"xi0 = {XI0:.4f}")
+
+print("Fitting CDM Mh per bin ... ", end="", flush=True)
+MH_FIT = [_fit_mh_per_bin(b, ms, XI0) for b, ms in zip(BINS, MBAR)]
+print("done  Mh/1e12 =", [f"{m/1e12:.2f}" for m in MH_FIT])
 
 # ── Chi2 / (N-1), log-space asymmetric errors ─────────────────────────────────
 def chi2_nu(pred, bdata):
@@ -145,13 +156,13 @@ print("  Bin  Model   chi2_nu(SIS)  chi2_nu(FWD)  FWD/SIS  Rank(SIS) Rank(FWD)")
 print("=" * 72)
 
 results = []
-for i, (bdata, mbar, mstar, s, mh) in enumerate(
-        zip(BINS, MBAR, MSTAR, S_BIN_HMG, MH_MOSTER), 1):
+for i, (bdata, mbar, mstar, s, mh_shmr, mh) in enumerate(
+        zip(BINS, MBAR, MSTAR, S_BIN_HMG, MH_MOSTER, MH_FIT), 1):
     R_arr  = bdata[:, 0]       # Mpc, all 15 points
     R_kpc  = R_arr * MPC_TO_KPC
 
     print(f"\nBin {i}: log M* = {np.log10(mstar):.2f}, Mbar = {mbar:.3e} M_sun, "
-          f"s_HMG = {s}, Mh = {mh:.3e} M_sun")
+          f"s_HMG = {s}, Mh_fit = {mh:.3e} M_sun")
 
     # ── SIS chi2 (standard kernel) ──────────────────────────────────────────
     c_hmg_sis  = chi2_nu(h.gobs_hmg(R_kpc, mbar, s), bdata)
@@ -202,7 +213,7 @@ c_hmg_sis_g  = sum(h._chi2_arr(h.gobs_hmg(b[:,0]*MPC_TO_KPC, mb, s), b)
 c_mond_sis_g = sum(h._chi2_arr(h.mond_gobs(h.gbar_si(b[:,0], mb)), b)
                    for b, mb in zip(BINS, MBAR)) / N_tot
 c_cdm_sis_g  = sum(h._chi2_arr(h.gobs_cdm(b[:,0]*MPC_TO_KPC, mb, mh, XI0), b)
-                   for b, mb, mh in zip(BINS, MBAR, MH_MOSTER)) / N_tot
+                   for b, mb, mh in zip(BINS, MBAR, MH_FIT)) / N_tot
 
 print(f"  chi2_nu SIS: HMG = {c_hmg_sis_g:.3f}  MOND = {c_mond_sis_g:.3f}  CDM = {c_cdm_sis_g:.3f}")
 
