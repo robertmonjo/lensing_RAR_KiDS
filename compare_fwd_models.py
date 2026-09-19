@@ -12,10 +12,10 @@ Per-bin output:
   chi2_nu(SIS) and chi2_nu(FWD) for HMG (best-fit s), MOND (fixed a0), CDM (SHMR+xi0).
 
 Note: the baryonic point-mass contribution M_bar/(pi R^2) to DeltaSigma is
-omitted for all three models (consistent with forward_lensing_delta_sigma.py).
-Its inclusion would systematically shift all FWD values upward at R < 0.1 Mpc,
-but is < 2% at the signal-dominated scales (0.16-0.8 Mpc) and does not affect
-the ranking.
+included in compute_g_fwd for all three models (consistent with
+forward_lensing_delta_sigma.py v3). Its contribution is 3.7-6.6% at R=0.16 Mpc
+(inner boundary of signal-dominated range) and up to ~38% at R=0.035 Mpc.
+The ranking HMG < MOND < CDM is preserved.
 """
 
 import sys
@@ -28,7 +28,10 @@ from scipy.interpolate import interp1d
 from scipy.optimize import minimize_scalar
 import hmg_model as h
 
-_trapz = getattr(np, 'trapezoid', np.trapz)   # np.trapezoid added in NumPy 2.0
+try:
+    _trapz = np.trapezoid   # NumPy >= 2.0
+except AttributeError:
+    _trapz = np.trapz       # NumPy < 2.0
 
 # ── Physical constants ────────────────────────────────────────────────────────
 G_SI     = h.G_SI          # m^3 kg^-1 s^-2
@@ -128,7 +131,7 @@ def sigma_at_R(R_mpc, rho_at, z_max=200.0):
                   0.0, z_max, limit=500, epsrel=1e-5)
     return 2.0 * val
 
-def compute_g_fwd(R_mpc_arr, g_callable, label="", R_lo=0.001):
+def compute_g_fwd(R_mpc_arr, g_callable, mbar_msun, label="", R_lo=0.001):
     """
     Forward lensing g_fwd(R) [m/s^2] via Abel projection.
     R_lo = 0.001 Mpc (1 kpc): same truncation as forward_lensing_delta_sigma.py.
@@ -149,7 +152,8 @@ def compute_g_fwd(R_mpc_arr, g_callable, label="", R_lo=0.001):
         integral = _trapz(R_int * sig_at(R_int), R_int)
         dS[i]    = 2.0 / R**2 * integral - sig_at(R)
     print("done")
-    return ESD2G * dS
+    g_point = ESD2G * mbar_msun / (np.pi * R_arr**2 * 1.0e12)
+    return ESD2G * dS + g_point
 
 # ── Main comparison ───────────────────────────────────────────────────────────
 print()
@@ -173,10 +177,10 @@ for i, (bdata, mbar, mstar, s, mh_shmr, mh) in enumerate(
     c_cdm_shmr_sis  = chi2_nu(h.gobs_cdm(R_kpc, mbar, mh_shmr, XI0), bdata) # SHMR Mh (§3)
 
     # ── FWD chi2 (Abel projection) ──────────────────────────────────────────
-    g_fwd_hmg       = compute_g_fwd(R_arr, lambda r: g_hmg_fn(r, mbar, s),        "HMG     ")
-    g_fwd_mond      = compute_g_fwd(R_arr, lambda r: g_mond_fn(r, mbar),           "MOND    ")
-    g_fwd_cdm       = compute_g_fwd(R_arr, lambda r: g_cdm_fn(r, mbar, mh, XI0),      "CDM-fit ")
-    g_fwd_cdm_shmr  = compute_g_fwd(R_arr, lambda r: g_cdm_fn(r, mbar, mh_shmr, XI0), "CDM-SHMR")
+    g_fwd_hmg       = compute_g_fwd(R_arr, lambda r: g_hmg_fn(r, mbar, s),        mbar, "HMG     ")
+    g_fwd_mond      = compute_g_fwd(R_arr, lambda r: g_mond_fn(r, mbar),           mbar, "MOND    ")
+    g_fwd_cdm       = compute_g_fwd(R_arr, lambda r: g_cdm_fn(r, mbar, mh, XI0),  mbar, "CDM-fit ")
+    g_fwd_cdm_shmr  = compute_g_fwd(R_arr, lambda r: g_cdm_fn(r, mbar, mh_shmr, XI0), mbar, "CDM-SHMR")
 
     c_hmg_fwd       = chi2_nu(g_fwd_hmg,       bdata)
     c_mond_fwd      = chi2_nu(g_fwd_mond,      bdata)

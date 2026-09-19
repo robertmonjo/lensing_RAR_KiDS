@@ -30,6 +30,11 @@ import numpy as np
 from scipy import integrate
 from scipy.interpolate import interp1d
 
+try:
+    _trapz = np.trapezoid   # NumPy >= 2.0
+except AttributeError:
+    _trapz = np.trapz       # NumPy < 2.0
+
 # ── Physical constants ────────────────────────────────────────────────────────
 G_SI       = 6.674e-11        # m^3 kg^-1 s^-2
 MPC_M      = 3.0857e22        # m per Mpc
@@ -178,9 +183,13 @@ def compute_g_fwd(R_mpc_arr, mbar_msun, s, verbose=False):
     dS = np.zeros(len(R_arr))
     for i, R in enumerate(R_arr):
         R_int    = np.linspace(R_lo, R, 1000)
-        integral = np.trapezoid(R_int * sig_at(R_int), R_int)
+        integral = _trapz(R_int * sig_at(R_int), R_int)
         dS[i]   = 2.0 / R**2 * integral - sig_at(R)
-    return ESD2G * dS
+    # Baryonic point-mass contribution: DeltaSigma_point = M_bar/(pi R^2) [M_sun/Mpc^2]
+    # This term is missed by the Abel integral because rho_eff -> 0 near r=0
+    # for a centralised baryonic point mass (M_eff = M_bar = const -> dM/dr = 0).
+    g_point = ESD2G * mbar_msun / (np.pi * R_arr**2 * 1.0e12)
+    return ESD2G * dS + g_point
 
 # ── SIS analytic validation ───────────────────────────────────────────────────
 
