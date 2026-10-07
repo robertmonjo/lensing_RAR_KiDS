@@ -11,8 +11,9 @@ N=40 : bins 1-4, outer radii (r >= 0.164 Mpc), 10 pts/bin
 
 Sigma_lin
 ---------
-Asymmetric: sigma_up = g_p84 - g_obs when pred < g_obs,
-            sigma_dn = g_obs - g_p16 when pred >= g_obs.
+Asymmetric (toward-model, consistent with log-space metric):
+            sigma_up = g_p84 - g_obs when pred >= g_obs,
+            sigma_dn = g_obs - g_p16 when pred < g_obs.
 
 Degrees of freedom
 ------------------
@@ -71,7 +72,7 @@ def chi2_lin(pred, bdata):
     gobs   = bdata[:, 1]
     sig_up = bdata[:, 3] - gobs   # g_p84 - g_obs
     sig_dn = gobs - bdata[:, 2]   # g_obs - g_p16
-    sig    = np.where(pred < gobs, sig_up, sig_dn)
+    sig    = np.where(pred >= gobs, sig_up, sig_dn)
     return float(np.sum(((gobs - pred) / sig) ** 2))
 
 def chi2_log(pred, bdata):
