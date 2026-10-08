@@ -217,26 +217,39 @@ for i, (bdata, mbar, mstar, s, mh_shmr, mh) in enumerate(
 # ── Global summary ────────────────────────────────────────────────────────────
 print()
 print("=" * 72)
-print("GLOBAL (all 4 bins combined, chi2_total / (4*14) = chi2_total / 56)")
-print("CDM uses Moster+2013 SHMR halo masses (consistent with paper §3 and A.4)")
-N_tot = sum(len(b) for b in BINS) - len(BINS)   # 4*15 - 4 = 56
+print("GLOBAL (all 4 bins combined, N=60)")
+print("Degrees of freedom: HMG nu=56 (k=4 per-bin s), MOND-fix nu=60 (k=0),")
+print("                    CDM nu=59 (k=1 global xi0).  CDM uses SHMR Mh.")
+N_HMG  = sum(len(b) for b in BINS) - len(BINS)   # 60 - 4 = 56 (one s per bin)
+N_MOND = sum(len(b) for b in BINS)                 # 60           (no free params)
+N_CDM  = sum(len(b) for b in BINS) - 1            # 60 - 1 = 59 (global xi0)
 
-c_hmg_sis_g      = sum(h._chi2_arr(h.gobs_hmg(b[:,0]*MPC_TO_KPC, mb, s), b)
-                       for b, mb, s in zip(BINS, MBAR, S_BIN_HMG)) / N_tot
-c_mond_sis_g     = sum(h._chi2_arr(h.mond_gobs(h.gbar_si(b[:,0], mb)), b)
-                       for b, mb in zip(BINS, MBAR)) / N_tot
-c_cdm_sis_shmr_g = sum(h._chi2_arr(h.gobs_cdm(b[:,0]*MPC_TO_KPC, mb, mh, XI0), b)
-                       for b, mb, mh in zip(BINS, MBAR, MH_MOSTER)) / N_tot
-c_cdm_sis_fit_g  = sum(h._chi2_arr(h.gobs_cdm(b[:,0]*MPC_TO_KPC, mb, mh, XI0), b)
-                       for b, mb, mh in zip(BINS, MBAR, MH_FIT)) / N_tot
+chi2_hmg_sis  = sum(h._chi2_arr(h.gobs_hmg(b[:,0]*MPC_TO_KPC, mb, s), b)
+                    for b, mb, s in zip(BINS, MBAR, S_BIN_HMG))
+chi2_mond_sis = sum(h._chi2_arr(h.mond_gobs(h.gbar_si(b[:,0], mb)), b)
+                    for b, mb in zip(BINS, MBAR))
+chi2_cdm_sis  = sum(h._chi2_arr(h.gobs_cdm(b[:,0]*MPC_TO_KPC, mb, mh, XI0), b)
+                    for b, mb, mh in zip(BINS, MBAR, MH_MOSTER))
+chi2_cdm_sis_fit = sum(h._chi2_arr(h.gobs_cdm(b[:,0]*MPC_TO_KPC, mb, mh, XI0), b)
+                       for b, mb, mh in zip(BINS, MBAR, MH_FIT))
+
+c_hmg_sis_g      = chi2_hmg_sis  / N_HMG
+c_mond_sis_g     = chi2_mond_sis / N_MOND
+c_cdm_sis_shmr_g = chi2_cdm_sis  / N_CDM
+c_cdm_sis_fit_g  = chi2_cdm_sis_fit / N_CDM
 
 print(f"  chi2_nu SIS (SHMR CDM): HMG = {c_hmg_sis_g:.3f}  MOND = {c_mond_sis_g:.3f}  CDM = {c_cdm_sis_shmr_g:.3f}")
 print(f"  chi2_nu SIS (fit  CDM): CDM = {c_cdm_sis_fit_g:.3f}  (per-bin fitted Mh, Table 1 reference)")
 
-c_hmg_fwd_g      = sum(r["HMG_FWD"]       * 14 for r in results) / N_tot
-c_mond_fwd_g     = sum(r["MOND_FWD"]      * 14 for r in results) / N_tot
-c_cdm_fwd_shmr_g = sum(r["CDM_SHMR_FWD"] * 14 for r in results) / N_tot
-c_cdm_fwd_fit_g  = sum(r["CDM_FWD"]       * 14 for r in results) / N_tot
+chi2_hmg_fwd  = sum(r["HMG_FWD"]       * 14 for r in results)
+chi2_mond_fwd = sum(r["MOND_FWD"]      * 14 for r in results)
+chi2_cdm_fwd  = sum(r["CDM_SHMR_FWD"] * 14 for r in results)
+chi2_cdm_fwd_fit = sum(r["CDM_FWD"]   * 14 for r in results)
+
+c_hmg_fwd_g      = chi2_hmg_fwd  / N_HMG
+c_mond_fwd_g     = chi2_mond_fwd / N_MOND
+c_cdm_fwd_shmr_g = chi2_cdm_fwd  / N_CDM
+c_cdm_fwd_fit_g  = chi2_cdm_fwd_fit / N_CDM
 
 print(f"  chi2_nu FWD (SHMR CDM): HMG = {c_hmg_fwd_g:.3f}  MOND = {c_mond_fwd_g:.3f}  CDM = {c_cdm_fwd_shmr_g:.3f}")
 print(f"  chi2_nu FWD (fit  CDM): CDM = {c_cdm_fwd_fit_g:.3f}  (per-bin fitted Mh, Table 1 reference)")

@@ -400,7 +400,7 @@ for sy in SYSTEMS:
     xi_str = pm(d["xi2"], xi_lo if sy["s_lo"] else None, xi_hi if sy["s_hi"] else None, 2)
     gs_str = pm(d["gs"], gs_lo if sy["s_lo"] else None, gs_hi if sy["s_hi"] else None, 2)
     ns = sy.get("nsig")
-    chi2nu = ns**2 if ns is not None else None        # column reports chi2_nu = (n_sigma)^2
+    chi2nu = ns if ns is not None else None           # column reports n_sigma = sqrt(chi2_nu)
     ns_str = f"{chi2nu:.2f}" if chi2nu is not None else "---"
     name = f"{sy['name']} \\citep{{{sy['cite']}}}" if sy["cite"] else sy["name"]
     if sy["work"]:
