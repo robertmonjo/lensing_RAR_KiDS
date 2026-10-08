@@ -20,12 +20,14 @@ The ranking HMG < MOND < CDM is preserved.
 
 import sys
 import os
+import warnings
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 import numpy as np
-from scipy.integrate import quad
+from scipy.integrate import quad, IntegrationWarning
 from scipy.interpolate import interp1d
 from scipy.optimize import minimize_scalar
+warnings.filterwarnings('ignore', category=IntegrationWarning)
 import hmg_model as h
 
 try:

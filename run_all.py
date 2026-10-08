@@ -41,6 +41,19 @@ STEPS = [
 ]
 
 # Auxiliary/exploratory scripts NOT in STEPS (run by hand if needed):
+#
+#   FWD-kernel optimal fits (Table A.2, FWD-opt row) — two sequential steps,
+#   total runtime ~1-3 h (faster on multi-core; checkpoints allow resumption):
+#   fwd_global_refit.py     -- Step 1: FWD chi2_global grid for HMG (s) and MOND (a0).
+#                              Saves outputs/fwd_global_refit_checkpoint.json (per-bin
+#                              chi2 values at 5 s and 5 a0 points) and
+#                              outputs/fwd_global_refit.json/.csv (fitted optima).
+#   fwd_global_refit_v2.py  -- Step 2: reads v1 checkpoint for HMG/MOND; adds CDM
+#                              FWD-opt (single global xi0, SHMR Mh fixed, nu=59).
+#                              Saves outputs/fwd_global_refit_v2.json/.csv.
+#                              Run Step 1 first; v2 silently skips HMG/MOND if the
+#                              v1 checkpoint is absent.
+#
 #   10_lin_chi2_table2.py   -- recomputes chi2_nu_lin for all Table 2 rows (N=30/N=40,
 #                              HMG/MICE/MOND); prints to stdout only (no output files).
 #                              Values cross-check the LIN column of tab:mice_comparison.

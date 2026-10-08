@@ -26,9 +26,12 @@ SIS analytic test: for rho = A/r^2, g_fwd must equal g_SIS to <0.5%
 """
 
 import csv
+import warnings
 import numpy as np
 from scipy import integrate
+from scipy.integrate import IntegrationWarning
 from scipy.interpolate import interp1d
+warnings.filterwarnings('ignore', category=IntegrationWarning)
 
 try:
     _trapz = np.trapezoid   # NumPy >= 2.0
