@@ -64,6 +64,17 @@ The MICE ΛCDM products consumed above (`data/rar_band_b21_bin{1..4}.txt`, `data
 - Table A.1's last column is the reduced χ² (`χ²_ν = χ²/(N−k)`) of the HMG prediction vs `g_obs`, computed in log-acceleration space with the asymmetric 16th–84th-percentile weights (`σ⁺` if the model over-predicts, `σ⁻` if it under-predicts) at each row's `s`. Single stacked curves (KiDS, MW, gal-gal WL, UDGs) are fit jointly; multi-object samples (SPARC, HIFLUGCS, X-COP) are fit per object and the median is reported. The Milky Way `χ²_ν` is quoted from the vertical-gravity analysis (nbar1 = MI, the best reconstruction; degenerate between the `s ≈ 0.50` and `s ≈ 2.00` branches).
 - `make_fig_gs_fields.py` and `make_fig_xi_req.py` are **auxiliary/exploratory** diagnostics — not part of the paper and not in `run_all.py`. Run them by hand if wanted.
 
+## Auxiliary scripts (not in `run_all.py`)
+
+These scripts reproduce specific results reported in the paper but require either longer run times or a pre-computed checkpoint. They are **not** called by `run_all.py`; run them by hand when needed.
+
+| Script | Output | Paper | Notes |
+|---|---|---|---|
+| `forward_lensing_delta_sigma.py` | `forward_lensing_results.csv` | Appendix A.4 | Abel-projection kernel vs SIS; validates the g_fwd/g_SIS ratios and χ²_ν values in §A.4. Run time ~5 min. No external dependencies beyond numpy/scipy. |
+| `10_lin_chi2_table2.py` | stdout only | Table 2 (LIN column) | Recomputes χ²_ν(lin) for all Table 2 rows (N=30 or N=40) using the asymmetric toward-model convention. Prints results; writes no files. |
+| `fwd_global_refit_v2.py` | `outputs/fwd_global_refit_v2.{json,csv}` | Table A.2 (FWD-opt rows) | Global refit with the Abel-projection (FWD) kernel; ν = N_total − 1 = 59. **Requires** `outputs/fwd_global_refit_checkpoint.json` produced first by `fwd_global_refit.py` (HMG + MOND per-bin integrals, ~1–3 h on 1 core). Then run `python fwd_global_refit_v2.py` (~5 min) to add the CDM row and write the final table. |
+| `compare_fwd_models.py` | stdout | Appendix A.4 (cross-check) | Compares χ²_ν(SIS) vs χ²_ν(FWD) ranking across HMG, MOND and CDM. Requires the checkpoint above. |
+
 ## License
 
 Code: MIT (see [`LICENSE`](LICENSE)). Data files under `data/` are redistributed from their original published sources and remain subject to those sources' terms.
