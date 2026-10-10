@@ -27,6 +27,8 @@ That single command produces every figure (PNG + PDF) and every CSV/TeX table in
 | `make_tables.py` | `tab_model_comparison.csv`, `tab_mice_comparison.csv` | **Table 1** (model comparison) + **Table 2** (MICE) |
 | `xcop_rnei_nsig.py` | `xcop_rnei_nsig.txt` | X-COP n_σ for Table A.1 |
 | `make_tab_regimes.py` | `tab_regimes.csv`, `tab_regimes_body.tex` | **Table A.1** |
+| `forward_lensing_delta_sigma.py` | `forward_lensing_results.csv` | **Appendix A.4** (Abel FWD vs SIS kernel, ~5 min) |
+| `compare_fwd_models.py` | `compare_fwd_models.csv` | **Appendix A.4** (HMG/MOND/CDM ranking under both kernels, ~20–30 min) |
 
 Figure and script names follow the paper numbering (Fig. 1 in the body; Fig. A.1 and A.2 in the appendix); see `SCRIPT_NAMING.md`.
 
@@ -66,14 +68,12 @@ The MICE ΛCDM products consumed above (`data/rar_band_b21_bin{1..4}.txt`, `data
 
 ## Auxiliary scripts (not in `run_all.py`)
 
-These scripts reproduce specific results reported in the paper but require either longer run times or a pre-computed checkpoint. They are **not** called by `run_all.py`; run them by hand when needed.
+These scripts reproduce specific results but require either longer run times or a pre-computed checkpoint. They are **not** called by `run_all.py`.
 
 | Script | Output | Paper | Notes |
 |---|---|---|---|
-| `forward_lensing_delta_sigma.py` | `forward_lensing_results.csv` | Appendix A.4 | Abel-projection kernel vs SIS; validates the g_fwd/g_SIS ratios and χ²_ν values in §A.4. Run time ~5 min. No external dependencies beyond numpy/scipy. |
-| `10_lin_chi2_table2.py` | stdout only | Table 2 (LIN column) | Recomputes χ²_ν(lin) for all Table 2 rows (N=30 or N=40) using the asymmetric toward-model convention. Prints results; writes no files. |
-| `fwd_global_refit_v2.py` | `outputs/fwd_global_refit_v2.{json,csv}` | Table A.2 (FWD-opt rows) | Global refit with the Abel-projection (FWD) kernel; ν = N_total − 1 = 59. **Requires** `outputs/fwd_global_refit_checkpoint.json` produced first by `fwd_global_refit.py` (HMG + MOND per-bin integrals, ~1–3 h on 1 core). Then run `python fwd_global_refit_v2.py` (~5 min) to add the CDM row and write the final table. |
-| `compare_fwd_models.py` | stdout | Appendix A.4 (cross-check) | Compares χ²_ν(SIS) vs χ²_ν(FWD) ranking across HMG, MOND and CDM. Requires the checkpoint above. |
+| `10_lin_chi2_table2.py` | stdout only | Table 2 (LIN column) | Recomputes χ²_ν(lin) for all Table 2 rows using the asymmetric toward-model convention. Prints results; writes no files. |
+| `fwd_global_refit_v2.py` | `outputs/fwd_global_refit_v2.{json,csv}` | Table A.2 (FWD-opt rows) | Global refit with the FWD kernel; ν = 59. **Two sequential steps:** (1) run `fwd_global_refit.py` (~1–3 h) to produce `outputs/fwd_global_refit_checkpoint.json`; (2) run `fwd_global_refit_v2.py` (~5 min) to add the CDM row and write the final table. |
 
 ## License
 
