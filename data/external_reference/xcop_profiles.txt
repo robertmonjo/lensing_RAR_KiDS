@@ -2,7 +2,7 @@
 # Source: X-COP Einasto (EIN3) hydrostatic mass profiles (one FITS per cluster)
 #         (Eckert et al. 2022, A&A 662, A123, X-COP; Monjo 2025, ApJ 981, 195, DOI 10.3847/1538-4357/adb723)
 # Extracted with astropy.io.fits, full radial grid (all 200 rows/cluster), 2026-08-07.
-# Columns 4-9 (masses) are in SOLAR MASSES exactly as stored in the FITS; radii in kpc.
+# Column 1 is the cluster name; radii (columns 2-4) are in kpc; masses (columns 5-10) are in SOLAR MASSES exactly as stored in the FITS.
 #   R_IN,R_OUT,R_REF = inner/outer/reference radius [kpc]
 #   M_DM(_LO/_HI)    = enclosed dark(=missing) mass and its lo/hi bound [Msun]
 #   MGAS(_LO/_HI)    = enclosed hot-gas (baryonic) mass and its lo/hi bound [Msun]
