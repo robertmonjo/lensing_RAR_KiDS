@@ -73,6 +73,7 @@ These scripts reproduce specific results but require either longer run times or 
 | Script | Output | Paper | Notes |
 |---|---|---|---|
 | `10_lin_chi2_table2.py` | stdout only | Table 2 (LIN column) | Recomputes χ²_ν(lin) for all Table 2 rows using the asymmetric toward-model convention. Prints results; writes no files. |
+| `forward_projection_convergence.py` | `outputs/forward_projection_convergence.json` | Appendix A.4 (convergence and clipping) | Repeats the forward projection of HMG, MOND and CDM in the four mass bins with all numerical settings refined at once and reports the maximum change in `g_fwd` and in the per-bin χ²_ν, and the grid points where `rho_eff <= 0`. A few minutes. |
 | `fwd_global_refit_v2.py` | `outputs/fwd_global_refit_v2.{json,csv}` | Table A.2 (FWD-opt rows) | Global refit with the FWD kernel; ν = 59. **Two sequential steps:** (1) run `fwd_global_refit.py` (~1–3 h) to produce `outputs/fwd_global_refit_checkpoint.json`; (2) run `fwd_global_refit_v2.py` (~5 min) to add the CDM row and write the final table. |
 
 ## License

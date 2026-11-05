@@ -203,6 +203,15 @@ Split criteria:
 
 ---
 
+### Step 09 — g_bar–radius map for the morphological subsets
+
+**Script:** `scripts/09_morph_gbar_r.py`
+**Output:** `data/morph_gbar_r_mice.txt` (also copied to the top-level `data/`)
+
+The KiDS morphological and colour profiles of Brouwer et al. (2021) are tabulated against g_bar. For each MICE subset (B/T < 0.5 or ≥ 0.5; g−r < 0.6 or ≥ 0.6) the script gives the mean projected radius at fixed g_bar in the convention of Brouwer et al. (2021): g_bar = G M_gal / R² with M_gal = M⋆ (1 + f_cold) and log10 f_cold = −0.69 log10(M⋆/M⊙) + 6.63 (Boselli et al. 2014), i.e. g_bar(R) = (⟨√(G M_gal)⟩ / R)². `make_tables.py` and the figure scripts interpolate this map at each KiDS point.
+
+---
+
 ## Quick run (steps 02–06)
 
 ```bash
