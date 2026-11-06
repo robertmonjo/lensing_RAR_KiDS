@@ -154,30 +154,10 @@ print(f"MOND (free a0), global: a0 = {A0_MOND_FREE:.3e} m/s^2 "
       f"({A0_MOND_FREE/1.2e-10:.2f}x standard), chi2_nu = {C2_MOND_FREE:.2f}")
 
 # ── Morphological subsets (full xi^2 = 1/s^3 + v_H^2/12v_N^2, r from MICE) ──────
-import re as _re
-def _load_morph_r(key):
-    blocks = {}; cur = None
-    with open(os.path.join(h.DATA_DIR, "morph_gbar_r_mice.txt")) as fh:
-        for ln in fh:
-            m = _re.match(r"### (\w+)", ln)
-            if m:
-                cur = m.group(1); blocks[cur] = []; continue
-            if cur and ln[:1].isdigit():
-                a = ln.split()
-                if len(a) == 2:
-                    blocks[cur].append((float(a[0]), float(a[1])))
-    arr = np.array(blocks[key]); r = arr[:, 0] * h.MPC_TO_KPC; lgb = arr[:, 1]
-    o = np.argsort(lgb)
-    return lambda g: np.interp(np.log10(g), lgb[o], r[o])
-_MKEY = {"late": "LATE_sersic", "early": "EARLY_sersic",
-         "blue": "BLUE_color", "red": "RED_color"}
-_r_of = {k: _load_morph_r(v) for k, v in _MKEY.items()}
+_r_of = h.morph_r_maps()
 
 def _gobs_full(gb, s, rk):
-    gc = gb / h.CODE_TO_SI; v2n = gc * rk; vh2 = (rk / h.T0)**2
-    xi2 = 1.0/s**3 + vh2/(12.0*v2n + 1e-60)
-    ge  = 2.0 * h.C_KMS / h.T0 * h._cos_over_gamma(xi2)
-    return np.sqrt(np.maximum(gc*(gc + ge), 0.0)) * h.CODE_TO_SI
+    return h.gobs_hmg_gbar(gb, rk, s)
 
 def fit_morph(gb, go, ge, key, lo, hi):
     rk = _r_of[key](gb); sig = ge / (go * np.log(10))
@@ -206,7 +186,7 @@ def constg0_morph(gb, go, ge):
 
 # CDM for morphology: r from MICE map, baryonic mass = MICE median M_star + cold gas,
 # M_h fitted (xi0 = global XI0). f_cold matches the bins' Boselli-2014 gas correction.
-MSTAR_MORPH = {"late": 10**9.745, "early": 10**10.154, "blue": 10**9.610, "red": 10**9.888}
+MSTAR_MORPH = h.morph_mstar()
 MBAR_MORPH = {k: m * (1 + h.f_cold(m)) for k, m in MSTAR_MORPH.items()}
 def cdm_morph(gb, go, ge, key):
     ms = MBAR_MORPH[key]; rk = _r_of[key](gb); sig = ge / (go * np.log(10))
@@ -215,8 +195,9 @@ def cdm_morph(gb, go, ge, key):
     r = minimize_scalar(c2, bounds=(10.5, 13.5), method="bounded")
     return c2(r.x) / (len(gb) - 1)
 
-for name, fn, key in [("Late-type (n<2.5)", "Sersicbin_1", "late"),
-                      ("Early-type (n>=2.5)", "Sersicbin_2", "early"),
+morph = {}
+for name, fn, key in [("Late-type (n<2)", "Sersicbin_1", "late"),
+                      ("Early-type (n>=2)", "Sersicbin_2", "early"),
                       ("Blue (u-r)", "Colorbin_1", "blue"),
                       ("Red (u-r)", "Colorbin_2", "red")]:
     gb, go, ge = h.load_morph(f"Fig-8_RAR-KiDS-isolated_{fn}.txt")
@@ -239,6 +220,8 @@ for name, fn, key in [("Late-type (n<2.5)", "Sersicbin_1", "late"),
         "MOND_free_chi2nu": round(mf_c2m, 2),
         "Mh_1e12": round(mh, 2), "Mh_1e12_err": round(mhe, 2), "CDM": round(cdm_morph(gb, go, ge, key), 2),
     })
+    morph[key] = dict(gb=gb, go=go, ge=ge, s=s_lo if c_lo <= c_hi else s_hi,
+                      dchi2=(c_hi - c_lo) * (len(gb) - 1))
 
 # write model_comparison.csv (full Table 1: fitted values + 1-sigma errors)
 cols = ["subsample", "Mstar",
@@ -253,6 +236,30 @@ for r in rows:
     print(f"  {r['subsample']:20s} s={r['s_best']}({r['s_err']}) X2lo={r['chi2nu_lo']} X2hi={r['chi2nu_hi']} | "
           f"g0/a0={r['g0_a0']}({r['g0_a0_err']}) X2={r['const_g0_chi2nu']} | MOND={r['MOND']} | "
           f"Mh={r['Mh_1e12']}({r['Mh_1e12_err']}) CDM={r['CDM']}")
+
+# Morphological pairs (Sect. 3): basin separation, quiescent/star-forming ratio of the
+# observed and predicted accelerations at common g_bar, and the star-forming best fit
+# applied to the quiescent data.  Both subsets of a split share one g_bar -> r map.
+summary = []
+for sf, q in [("late", "early"), ("blue", "red")]:
+    a, b = morph[sf], morph[q]
+    assert np.allclose(a["gb"], b["gb"])
+    rk = _r_of[q](b["gb"]); sig = b["ge"] / (b["go"] * np.log(10))
+    pred_q, pred_sf = _gobs_full(b["gb"], b["s"], rk), _gobs_full(a["gb"], a["s"], _r_of[sf](a["gb"]))
+    cross = float(np.sum(((np.log10(b["go"]) - np.log10(_gobs_full(b["gb"], a["s"], rk))) / sig)**2)) / (len(b["gb"]) - 1)
+    summary.append({"pair": f"{q}/{sf}",
+                    "dchi2_hi_minus_lo_" + sf: round(a["dchi2"], 1), "dchi2_hi_minus_lo_" + q: round(b["dchi2"], 1),
+                    "ratio_obs_mean": round(float(np.mean(b["go"] / a["go"])), 3),
+                    "ratio_obs_min": round(float(np.min(b["go"] / a["go"])), 3),
+                    "ratio_obs_max": round(float(np.max(b["go"] / a["go"])), 3),
+                    "ratio_hmg_mean": round(float(np.mean(pred_q / pred_sf)), 3),
+                    "cross_fit_chi2nu": round(cross, 2)})
+with open(os.path.join(OUT, "tab_morph_pairs.csv"), "w", newline="") as fh:
+    keys = sorted({k for r in summary for k in r}, key=lambda k: (k != "pair", k))
+    w = csv.DictWriter(fh, fieldnames=keys); w.writeheader(); w.writerows(summary)
+print("Wrote tab_morph_pairs.csv")
+for r in summary:
+    print("  " + ", ".join(f"{k}={v}" for k, v in r.items()))
 
 # Table 2 (tab_mice_comparison.csv) is generated by 10_lin_chi2_table2.py,
 # which computes both LOG and LIN chi2_nu for all 10 rows (HMG, MOND, MICE B21,

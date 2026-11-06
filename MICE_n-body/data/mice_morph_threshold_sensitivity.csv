@@ -1,0 +1,9 @@
+proxy,type,threshold,delta_bin1_pct,seed_spread_bin1_pct,delta_bin2_pct,seed_spread_bin2_pct,delta_bin3_pct,seed_spread_bin3_pct,delta_bin4_pct,seed_spread_bin4_pct
+B/T,late,0.45,0.01,0.04,0.00,0.00,0.00,0.00,0.00,0.00
+B/T,late,0.55,0.00,0.04,0.00,0.00,0.00,0.00,0.00,0.00
+B/T,early,0.45,0.08,0.29,2.57,0.85,14.11,12.35,23.49,27.83
+B/T,early,0.55,0.00,0.29,0.00,0.85,0.00,12.35,0.00,27.83
+g-r,blue,0.55,11.55,0.08,9.99,0.00,,,,
+g-r,blue,0.65,13.46,0.08,5.22,0.00,,,,
+g-r,red,0.55,11.14,1.33,22.51,22.80,,,,
+g-r,red,0.65,8.32,1.33,4.26,22.80,,,,

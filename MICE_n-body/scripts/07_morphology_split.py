@@ -1,9 +1,9 @@
 """Split isolated MICE2 lenses by morphology and colour, compute stacked RAR.
 
-Two splits (matching Brouwer+2021 Fig. 8):
+Two splits (proxies of the KiDS classifiers of Brouwer et al. 2021, Fig. 8):
   1. Sérsic proxy — bulge_fraction (= B/T directly in MICE2):
-       Late  (disc):  B/T < 0.5   ~  Sérsic n < 2.5
-       Early (bulge): B/T >= 0.5  ~  Sérsic n >= 2.5
+       Late  (disc):  B/T < 0.5   ~  Sérsic n < 2
+       Early (bulge): B/T >= 0.5  ~  Sérsic n >= 2
   2. Colour — gr_cos (rest-frame g−r from MICE2 SED fitting):
        Blue (late):  gr_cos < 0.6
        Red  (early): gr_cos >= 0.6
@@ -12,7 +12,8 @@ Requires:
   1. Isolated lens FITS files (from 02_select_isolated.py):
        mice2_isolated_bin{1..4}.fits
        Columns: ra_gal, dec_gal, z_cgal, lmstellar, lm_msun, lmhalo
-  2. Morphology download from CosmoHub (07_morph_raw.fits):
+  2. Morphology catalogue from CosmoHub (07_morph_raw.fits, or the full-sky
+     catalogue from download_morph_fullsky.py for the 1024 deg^2 sample):
        SQL:
          SELECT unique_gal_id, ra_gal, dec_gal, z_cgal,
                 bulge_fraction, gr_cos
@@ -36,10 +37,11 @@ import numpy as np
 from astropy.io import fits
 from astropy.cosmology import FlatLambdaCDM
 from scipy.spatial import cKDTree
+from mass_matching import match_mass
 
 COSMO = FlatLambdaCDM(H0=70.0, Om0=0.25)
 
-# Physical constants (same as scripts 03-04)
+# Physical constants
 G_SI           = 6.674e-11
 MSUN_KG        = 1.989e30
 PC_M           = 3.086e16
@@ -104,17 +106,17 @@ def gobs_from_halo(m_halo_msun, z, r_bins_mpc=R_BINS_MPC):
     return CONV_ESD_TO_GOBS * esd
 
 
-def gas_fraction(lm_msun):
-    log_fgas = -0.43 * (lm_msun - 10.0) - 0.49
-    return 10.0**np.clip(log_fgas, -3.0, 0.0)
+def cold_gas_fraction(lm_msun):
+    """f_cold = M_cold / M* (Boselli et al. 2014; Brouwer et al. 2021, Eq. 23)."""
+    return 10.0**(-0.69 * lm_msun + 6.63)
 
 
 def gbar_from_stellar(lm_msun, r_bins_mpc=R_BINS_MPC):
-    m_star = 10.0**lm_msun
-    f_gas  = gas_fraction(lm_msun)
-    m_bar  = m_star * (1.0 + f_gas / (1.0 - f_gas))
-    r_pc   = r_bins_mpc * MPC_PC
-    return 4.0 * G_PC3_MSUN_S2 * PC_M * m_bar / (np.pi * r_pc**2)
+    """Point-mass g_bar = G M_gal / R^2 with M_gal = M* (1 + f_cold) [m/s^2]
+    (Brouwer et al. 2021, Sect. 3.3)."""
+    m_gal = 10.0**lm_msun * (1.0 + cold_gas_fraction(lm_msun))
+    r_pc  = r_bins_mpc * MPC_PC
+    return G_PC3_MSUN_S2 * PC_M * m_gal / r_pc**2
 
 
 def stack_subsample(iso_data, mask, label=""):
@@ -190,6 +192,8 @@ def parse_args():
                    help="B/T threshold: late < bt_split <= early")
     p.add_argument("--gr_split",   type=float, default=0.6,
                    help="g-r threshold: blue < gr_split <= red")
+    p.add_argument("--seed",       type=int, default=1,
+                   help="seed of the random stellar-mass matching (mass_matching.py)")
     return p.parse_args()
 
 
@@ -207,47 +211,38 @@ def main():
         gr    = t["gr_cos"].astype(float)            # rest-frame g-r color
     print(f"  {len(m_ra):,} morphology entries")
 
-    results_late  = {}
-    results_early = {}
-    results_blue  = {}
-    results_red   = {}
-
+    # Isolated lenses with morphology, in bin order (same order as 09_morph_gbar_r.py).
+    per_bin = []
     for b in range(1, 5):
         isofile = os.path.join(args.isodir, f"mice2_isolated_bin{b}.fits")
-        if not os.path.exists(isofile):
-            print(f"Bin {b}: {isofile} not found, skipping")
-            continue
-
-        print(f"\nBin {b}:")
         with fits.open(isofile) as hdul:
             t_iso = hdul[1].data
-            iso = {k: t_iso[k].astype(float)
-                   for k in ["ra_gal","dec_gal","z_cgal","lm_msun","lmhalo"]}
-
+            iso = {k: t_iso[k].astype(float) for k in ["ra_gal", "dec_gal", "z_cgal", "lm_msun", "lmhalo"]}
         bt_iso = match_morphology(iso, m_ra, m_dec, m_z, bt)
         gr_iso = match_morphology(iso, m_ra, m_dec, m_z, gr)
+        ok = np.isfinite(bt_iso)
+        per_bin.append(({k: v[ok] for k, v in iso.items()}, bt_iso[ok], gr_iso[ok]))
+    lm_all = np.concatenate([p[0]["lm_msun"] for p in per_bin])
+    bt_all = np.concatenate([p[1] for p in per_bin])
+    gr_all = np.concatenate([p[2] for p in per_bin])
+    nb = np.concatenate([np.full(len(p[1]), b) for b, p in enumerate(per_bin, start=1)])
 
-        # ── Sérsic proxy (B/T) ────────────────────────────────────────────
-        mask_late  = bt_iso < args.bt_split
-        mask_early = bt_iso >= args.bt_split
-        res_late   = stack_subsample(iso, mask_late,  label=f"BT-Late  (B/T<{args.bt_split})")
-        res_early  = stack_subsample(iso, mask_early, label=f"BT-Early (B/T>={args.bt_split})")
-        for label, res in [("sersic_late", res_late), ("sersic_early", res_early)]:
+    # Mass matching of each split (Brouwer et al. 2021, Sect. 5.4)
+    k_late, k_early = match_mass(lm_all, bt_all < args.bt_split, bt_all >= args.bt_split, seed=args.seed)
+    k_blue, k_red = match_mass(lm_all, gr_all < args.gr_split, gr_all >= args.gr_split, seed=args.seed)
+    print(f"Mass-matched: late/early {k_late.sum()}/{k_early.sum()}, blue/red {k_blue.sum()}/{k_red.sum()}")
+
+    results = {"sersic_late": {}, "sersic_early": {}, "color_blue": {}, "color_red": {}}
+    for b, (iso, _, _) in enumerate(per_bin, start=1):
+        print(f"\nBin {b}:")
+        sel = nb == b
+        for label, k in [("sersic_late", k_late), ("sersic_early", k_early),
+                         ("color_blue", k_blue), ("color_red", k_red)]:
+            res = stack_subsample(iso, k[sel], label=label)
             _save_result(args.outdir, f"morph_{label}_bin{b}.txt", res)
-
-        results_late[b]  = res_late
-        results_early[b] = res_early
-
-        # ── Colour (gr_cos) ───────────────────────────────────────────────
-        mask_blue = gr_iso < args.gr_split
-        mask_red  = gr_iso >= args.gr_split
-        res_blue  = stack_subsample(iso, mask_blue, label=f"Blue (g-r<{args.gr_split})")
-        res_red   = stack_subsample(iso, mask_red,  label=f"Red  (g-r>={args.gr_split})")
-        for label, res in [("color_blue", res_blue), ("color_red", res_red)]:
-            _save_result(args.outdir, f"morph_{label}_bin{b}.txt", res)
-
-        results_blue[b] = res_blue
-        results_red[b]  = res_red
+            results[label][b] = res
+    results_late, results_early = results["sersic_late"], results["sersic_early"]
+    results_blue, results_red = results["color_blue"], results["color_red"]
 
     # Stacked over all bins (for morphological panels like B21 Fig 8)
     print("\nStacking all bins for morphological panels ...")

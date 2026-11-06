@@ -1,24 +1,22 @@
 """04_lensing_stack.py
-Compute g_obs via actual MICE tangential-shear stacking ('Approach A-true').
+Stacked galaxy-galaxy lensing RAR of the isolated MICE2 lenses.
 
-Replaces the NFW-profile approximation in 04_mock_esd.py + 05_stack_rar.py.
-For each isolated lens galaxy, background MICE galaxies (z_s > z_l + DZ_BUFFER)
-are used as shear tracers:
+For each isolated lens, background MICE2 galaxies (z_s > z_l + DZ_BUFFER) are used
+as shear tracers:
 
-    gamma_t  = -(gamma1_s * cos(2*phi) + gamma2_s * sin(2*phi))
-    DeltaSigma(r) = mean[ Sigma_cr(z_l, z_s) * gamma_t ] over pairs in bin r
-    g_obs(r) = CONV * DeltaSigma(r)
+    gamma_t       = g1 cos(2 phi) + g2 sin(2 phi)
+    DeltaSigma(R) = sum(gamma_t / Sigma_cr) / sum(Sigma_cr^-2)   (inverse-Sigma_cr^2 weights)
+    g_obs(R)      = 4 G DeltaSigma(R)                             (Brouwer et al. 2021, Eq. 7)
 
-g_bar is also stacked from each lens's stellar+gas mass (Baldry+2012 correction).
+g_bar follows Brouwer et al. (2021, Sect. 3.3): point mass g_bar = G M_gal / R^2 with
+M_gal = M* (1 + f_cold) and log10 f_cold = -0.69 log10(M*/Msun) + 6.63 (Boselli et al.
+2014; Brouwer et al. 2021, Eq. 23), averaged over the stacked lenses at each radius.
 
-Output: rar_stacked{suffix}_bin{b}.txt — same format as 05_stack_rar.py
-        r_Mpc   log10_gbar   log10_gobs
+Output: rar_stacked{suffix}_bin{b}.txt with columns  r_Mpc  log10_gbar  log10_gobs
 
-Usage (from MICE_n-body/scripts/):
-    conda activate mice
-    python 04_lensing_stack.py --bin 1 2 3 4
-    python 04_lensing_stack.py --bin 1 2 3 4 --suffix _photoz \\
-        --lens-pattern mice2_isolated_photoz_bin{b}.fits
+Usage (1024 deg^2 catalogue, z_l < 0.50; see run_b21_pipeline.sh):
+    python 04_lensing_stack.py --bin 1 2 3 4 --z-lens-max 0.50         --raw-fits ../data/MICE2_b21/mice2_b21_full.fits         --lens-pattern ../data/MICE2_b21/isolated/mice2_isolated_bin{b}.fits         --outdir ../data/MICE2_b21/stacked_ztrue
+    python 04_lensing_stack.py ... --lens-pattern .../mice2_isolated_photoz_bin{b}.fits         --outdir ../data/MICE2_b21/stacked_photoz
 """
 
 import argparse
@@ -49,7 +47,7 @@ R_MID   = np.sqrt(R_EDGES[:-1] * R_EDGES[1:])              # geometric midpoint
 N_BINS  = len(R_MID)
 
 DZ_BUFFER   = 0.05    # min Δz between lens and source
-Z_LENS_MAX  = 0.35    # max lens redshift (beyond this, too few bg sources at z_s<0.50)
+Z_LENS_MAX  = 0.35    # default max lens redshift; override with --z-lens-max
 THETA_EXTRA = 1.05    # slight margin when building KD-tree search radius
 
 # Paths (relative to this repo by default; override with $MICE_WORKDIR)
@@ -60,10 +58,10 @@ DATADIR  = os.path.join(WORKDIR, "data", "MICE2_isolated")
 RAW_FITS = os.path.join(DATADIR, "mice2_raw_test.fits")
 
 
-# ── Gas correction (Baldry+2012 as used in B21) ───────────────────────────────
+# ── Cold-gas fraction (Boselli et al. 2014; Brouwer et al. 2021, Eq. 23) ───────
 def cold_gas_fraction(lm_star):
-    """Return f_cold = M_gas/M_star (Baldry+2012 eq. for isolated galaxies)."""
-    return 10.0 ** (-0.43 * (lm_star - 10.0) - 0.49)
+    """Return f_cold = M_cold / M* for log10(M*/Msun) = lm_star."""
+    return 10.0 ** (-0.69 * lm_star + 6.63)
 
 
 # ── Sigma_cr in M_sun/pc^2 ────────────────────────────────────────────────────
@@ -83,7 +81,8 @@ def sigma_cr(z_l, z_s):
 
 
 # ── Main stacking routine ─────────────────────────────────────────────────────
-def stack_bin(lens_file, suffix, bin_num, src_ra, src_dec, src_z, src_g1, src_g2, tree):
+def stack_bin(lens_file, suffix, bin_num, src_ra, src_dec, src_z, src_g1, src_g2, tree,
+              z_lens_max=Z_LENS_MAX, outdir=None):
     print(f"\n  Bin {bin_num} ({suffix}): loading lenses ...", flush=True)
     with fits.open(lens_file) as hf:
         d = hf[1].data
@@ -91,12 +90,12 @@ def stack_bin(lens_file, suffix, bin_num, src_ra, src_dec, src_z, src_g1, src_g2
         dec_l  = d['dec_gal'].astype(np.float64)
         z_l    = d['z_cgal'].astype(np.float64)
         lm_msun = d['lm_msun'].astype(np.float64)   # log10(M_star [M_sun])
-    # Restrict to z_l < Z_LENS_MAX: beyond this threshold the source catalog
-    # (z_s < 0.50) provides too few background galaxies for reliable GGL.
-    keep = z_l < Z_LENS_MAX
+    # Restrict to z_l < z_lens_max: beyond this threshold the source catalog
+    # provides too few background galaxies for reliable GGL.
+    keep = z_l < z_lens_max
     ra_l = ra_l[keep]; dec_l = dec_l[keep]; z_l = z_l[keep]; lm_msun = lm_msun[keep]
     N_lens = len(ra_l)
-    print(f"  {N_lens} lenses after z_l<{Z_LENS_MAX} cut, "
+    print(f"  {N_lens} lenses after z_l<{z_lens_max} cut, "
           f"z ∈ [{z_l.min():.3f}, {z_l.max():.3f}]", flush=True)
 
     # Accumulators: ESD and gbar per radial bin
@@ -202,12 +201,13 @@ def stack_bin(lens_file, suffix, bin_num, src_ra, src_dec, src_z, src_g1, src_g2
         rows.append([R_MID[ib2], np.log10(gb), np.log10(gobs)])
 
     if not rows:
-        print(f"  WARNING: no valid rows for bin {bin_num} ({suffix})", flush=True)
+        print(f"  no valid rows for bin {bin_num} ({suffix})", flush=True)
         return
 
     rows = np.array(rows)
     fname = f"rar_stacked{suffix}_bin{bin_num}.txt"
-    out   = os.path.join(DATADIR, fname)
+    dest  = outdir if outdir else DATADIR
+    out   = os.path.join(dest, fname)
     hdr   = "r_Mpc  log10_gbar  log10_gobs"
     np.savetxt(out, rows, header=hdr, fmt="%.6e")
     print(f"  Saved: {out}")
@@ -218,7 +218,7 @@ def stack_bin(lens_file, suffix, bin_num, src_ra, src_dec, src_z, src_g1, src_g2
 # ── Entry point ───────────────────────────────────────────────────────────────
 def main():
     ap = argparse.ArgumentParser(
-        description="Stack MICE GGL signal (Approach A-true)"
+        description="Stacked lensing RAR of isolated MICE2 lenses"
     )
     ap.add_argument("--bin",  nargs="+", type=int, default=[1, 2, 3, 4],
                     metavar="B", dest="bins")
@@ -227,11 +227,25 @@ def main():
     ap.add_argument("--lens-pattern",
                     default="mice2_isolated_bin{b}.fits",
                     help="isolated lens FITS filename with {b} placeholder")
+    ap.add_argument("--z-lens-max", type=float, default=Z_LENS_MAX,
+                    help=f"max lens redshift (default {Z_LENS_MAX}; use 0.50 for B21 mode)")
+    ap.add_argument("--raw-fits", default=RAW_FITS,
+                    help="source catalog FITS file (default: mice2_raw_test.fits; "
+                         "use mice2_b21_full.fits for B21 mode)")
+    ap.add_argument("--outdir", default=None,
+                    help="output directory for stacked RAR files "
+                         "(default: same directory as the source catalog / MICE_WORKDIR)")
     args = ap.parse_args()
+
+    z_lens_max = args.z_lens_max
+    raw_fits   = args.raw_fits
+    outdir     = args.outdir if args.outdir else DATADIR
+    os.makedirs(outdir, exist_ok=True)
+    print(f"Z_LENS_MAX = {z_lens_max},  source catalog = {os.path.basename(raw_fits)},  outdir = {outdir}", flush=True)
 
     # Load source catalog once
     print("Loading source catalog ...", flush=True)
-    with fits.open(RAW_FITS) as hf:
+    with fits.open(raw_fits) as hf:
         sd = hf[1].data
         src_ra  = sd['ra_gal'].astype(np.float64)
         src_dec = sd['dec_gal'].astype(np.float64)
@@ -254,12 +268,15 @@ def main():
     print("  Done.", flush=True)
 
     for b in args.bins:
-        lens_file = os.path.join(DATADIR, args.lens_pattern.format(b=b))
+        lens_file = args.lens_pattern.format(b=b)
+        if not os.path.dirname(lens_file):
+            lens_file = os.path.join(DATADIR, lens_file)
         if not os.path.exists(lens_file):
             print(f"  Lens file not found: {lens_file}", flush=True)
             continue
         stack_bin(lens_file, args.suffix, b,
-                  src_ra, src_dec, src_z, src_g1, src_g2, tree)
+                  src_ra, src_dec, src_z, src_g1, src_g2, tree,
+                  z_lens_max=z_lens_max, outdir=outdir)
 
     print("\nDone. Run 08_b21_band.py next to combine ztrue + photoz.", flush=True)
 

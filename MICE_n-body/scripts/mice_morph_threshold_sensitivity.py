@@ -1,172 +1,118 @@
 #!/usr/bin/env python3
+"""Sensitivity of the MICE2 morphological stacks to the proxy thresholds.
+
+The MICE2 subsets use proxies of the KiDS classifiers: bulge fraction B/T (default
+split 0.50) for the Sersic index and rest-frame g - r (default 0.60) for u - r.
+07_morphology_split.py is run for B/T in {0.45, 0.50, 0.55} and g - r in {0.55, 0.60,
+0.65}; for every varied threshold the stacked g_obs of each subset is compared with the
+default, mass bin by mass bin at the same radii, and the maximum |g_obs / g_obs,default - 1|
+of each mass bin is reported (empty where either run lacks lenses in that bin).  The same
+comparison between the default thresholds with seeds 2-4 of the random stellar-mass
+matching and seed 1 gives the sampling spread against which the threshold changes are read.
+
+Usage:
+    python mice_morph_threshold_sensitivity.py --morphfile ../data/MICE2_b21/mice2_morph_b21_fullsky.fits \\
+        --isodir ../data/MICE2_b21/isolated --outdir ../data/MICE2_b21/sensitivity [--compare-only]
+
+Output: OUTDIR/bt{BT}_gr{GR}/morph_*.txt and OUTDIR/mice_morph_threshold_sensitivity.csv
 """
-mice_morph_threshold_sensitivity.py  --  Robert Monjo, 2026
-
-Sensitivity of the MICE2 morphological stacked RAR to proxy threshold choices.
-
-The MICE2 morphological classification uses two proxies that introduce
-an irreducible mapping uncertainty relative to the KiDS observational
-classifiers:
-
-  (i)  Sérsic proxy: bulge fraction B/T as proxy for Sérsic index n > 2.5.
-       Default split: B/T >= 0.50 = early.
-  (ii) Colour proxy: rest-frame g-r as proxy for observed u-r > 2.5.
-       Default split: g-r >= 0.60 = red.
-
-This script quantifies how much the stacked g_obs(R) (and hence the
-fitted HMG scale s) changes when each threshold is varied by ±10%:
-  B/T  ∈ {0.45, 0.50, 0.55}
-  g-r  ∈ {0.55, 0.60, 0.65}
-
-Method:
-  Run 07_morphology_split.py for each threshold combination, read the
-  output allbins TXT files, and compute the maximum fractional change
-  |g_obs(R,threshold) / g_obs(R,default) − 1| over all radial bins.
-
-Usage (on Nieve):
-  cd /tank/home_hielo/robert/overleaf/lensing_RAR_KiDS/MICE_n-body/scripts
-  python mice_morph_threshold_sensitivity.py \\
-    --morphfile /srv/data/robert/mice2/data/MICE2_isolated/07_morph_raw.fits \\
-    --isodir    /srv/data/robert/mice2/data/MICE2_isolated/ \\
-    --outdir    /srv/data/robert/mice2/data/MICE2_isolated/sensitivity/
-
-Output files:
-  sensitivity/morph_sersic_{late,early}_allbins_bt{BT}.txt  (one per threshold)
-  sensitivity/morph_color_{blue,red}_allbins_gr{GR}.txt
-  tables/mice_morph_threshold_sensitivity.csv
-"""
-
 import argparse
 import csv
 import os
 import subprocess
 import sys
-
 import numpy as np
 
-SCRIPT_07 = os.path.join(os.path.dirname(__file__), "07_morphology_split.py")
-
-BT_THRESHOLDS = [0.45, 0.50, 0.55]   # default = 0.50
-GR_THRESHOLDS = [0.55, 0.60, 0.65]   # default = 0.60
-
-TYPES_BT = {"sersic_late": "late", "sersic_early": "early"}
-TYPES_GR = {"color_blue":  "blue", "color_red":   "red"}
-
-
-def run_split(morphfile, isodir, outdir, bt_split, gr_split):
-    """Run 07_morphology_split.py with given thresholds; return output directory."""
-    tag = f"bt{int(round(bt_split*100)):03d}_gr{int(round(gr_split*100)):03d}"
-    subdir = os.path.join(outdir, tag)
-    os.makedirs(subdir, exist_ok=True)
-    cmd = [
-        sys.executable, SCRIPT_07,
-        "--morphfile", morphfile,
-        "--isodir",    isodir,
-        "--outdir",    subdir,
-        "--bt_split",  str(bt_split),
-        "--gr_split",  str(gr_split),
-    ]
-    print(f"Running: bt_split={bt_split}  gr_split={gr_split}  → {subdir}")
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        print(f"  ERROR:\n{result.stderr[-2000:]}")
-        raise RuntimeError(f"07_morphology_split.py failed for bt={bt_split}, gr={gr_split}")
-    return subdir, tag
+SCRIPT_07 = os.path.join(os.path.dirname(os.path.abspath(__file__)), "07_morphology_split.py")
+DEFAULT = (0.50, 0.60)
+VARIED = {"B/T": [(0.45, 0.60), (0.55, 0.60)], "g-r": [(0.50, 0.55), (0.50, 0.65)]}
+SEEDS = [2, 3, 4]
+TYPES = {"B/T": {"sersic_late": "late", "sersic_early": "early"},
+         "g-r": {"color_blue": "blue", "color_red": "red"}}
 
 
-def load_allbins(subdir, key):
-    """Load morph_{key}_allbins.txt; return (log10_gbar, log10_gobs, r_Mpc) or None."""
-    path = os.path.join(subdir, f"morph_{key}_allbins.txt")
+def tag(bt, gr, seed=1):
+    t = f"bt{int(round(bt * 100)):03d}_gr{int(round(gr * 100)):03d}"
+    return t if seed == 1 else f"{t}_seed{seed}"
+
+
+def run_split(args, bt, gr, seed=1):
+    sub = os.path.join(args.outdir, tag(bt, gr, seed))
+    os.makedirs(sub, exist_ok=True)
+    cmd = [sys.executable, SCRIPT_07, "--morphfile", args.morphfile, "--isodir", args.isodir,
+           "--outdir", sub, "--bt_split", str(bt), "--gr_split", str(gr), "--seed", str(seed)]
+    print("Running", " ".join(cmd[2:]), flush=True)
+    subprocess.run(cmd, check=True)
+
+
+def load_bin(sub, key, b):
+    """(r_Mpc, g_obs) of morph_{key}_bin{b}.txt, or None if the subset is empty in that bin."""
+    path = os.path.join(sub, f"morph_{key}_bin{b}.txt")
     if not os.path.exists(path):
         return None
-    d = np.loadtxt(path, comments="#")
-    if d.ndim < 2 or d.shape[1] < 2:
-        return None
-    return d[:, 0], d[:, 1]   # log10_gbar, log10_gobs
+    d = np.loadtxt(path, comments="#", ndmin=2)
+    return d[:, 4], 10.0 ** d[:, 1]
 
 
-def max_relative_change(g_default, g_varied):
-    """Max |g_varied/g_default − 1| over all radial points where both are finite."""
-    ok = np.isfinite(g_default) & np.isfinite(g_varied) & (g_default != 0)
-    if ok.sum() == 0:
-        return np.nan
-    return np.max(np.abs(g_varied[ok] / g_default[ok] - 1.0)) * 100.0  # percent
+def deltas(args, ref, var, key):
+    """Per mass bin: maximum |g_var / g_ref - 1| [%] over common radii (None if a run lacks the bin)."""
+    out = {}
+    for b in range(1, 5):
+        d = load_bin(os.path.join(args.outdir, ref), key, b)
+        v = load_bin(os.path.join(args.outdir, var), key, b)
+        if d is None or v is None:
+            out[b] = None
+            continue
+        common = np.intersect1d(np.round(d[0], 6), np.round(v[0], 6))
+        gd = np.array([d[1][np.argmin(np.abs(d[0] - r))] for r in common])
+        gv = np.array([v[1][np.argmin(np.abs(v[0] - r))] for r in common])
+        out[b] = float(np.max(np.abs(gv / gd - 1.0))) * 100.0
+    return out
 
 
-def run(morphfile, isodir, outdir, tables_dir):
-    os.makedirs(outdir, exist_ok=True)
-    os.makedirs(tables_dir, exist_ok=True)
+def fmt(x):
+    return "" if x is None else f"{x:.2f}"
 
-    # Run 07_morphology_split.py for each threshold combination
-    outputs = {}
-    for bt in BT_THRESHOLDS:
-        for gr in GR_THRESHOLDS:
-            subdir, tag = run_split(morphfile, isodir, outdir, bt, gr)
-            outputs[(bt, gr)] = (subdir, tag)
 
-    # Default outputs
-    def_subdir, _ = outputs[(0.50, 0.60)]
-
-    # Compute sensitivity
+def compare(args):
     rows = []
-    print("\nSensitivity  |Δg_obs / g_obs|  (%) relative to default threshold")
-    print(f"  {'proxy':>12}  {'type':>6}  {'threshold':>10}  {'max|Δg/g| (%)':>15}")
-    print("  " + "-" * 52)
-
-    for proxy_types, default_thr, varied_thrs, fixed_key in [
-        (TYPES_BT, (0.50, 0.60), [(0.45, 0.60), (0.55, 0.60)], "B/T"),
-        (TYPES_GR, (0.50, 0.60), [(0.50, 0.55), (0.50, 0.65)], "g-r"),
-    ]:
-        g_defaults = {}
-        for key, label in proxy_types.items():
-            r = load_allbins(def_subdir, key)
-            g_defaults[key] = 10.0**r[1] if r is not None else None
-
-        for bt_v, gr_v in varied_thrs:
-            sub_v, _ = outputs[(bt_v, gr_v)]
-            thr_val = bt_v if fixed_key == "B/T" else gr_v
-            for key, label in proxy_types.items():
-                g_def = g_defaults[key]
-                r_v   = load_allbins(sub_v, key)
-                g_var = 10.0**r_v[1] if r_v is not None else None
-                if g_def is None or g_var is None:
-                    pct = np.nan
-                else:
-                    # Align arrays (both have N radial points from allbins)
-                    n = min(len(g_def), len(g_var))
-                    pct = max_relative_change(g_def[:n], g_var[:n])
-                print(f"  {fixed_key:>12}  {label:>6}  {thr_val:>10.2f}  {pct:>14.2f}%")
-                rows.append({
-                    "proxy": fixed_key,
-                    "type": label,
-                    "threshold": thr_val,
-                    "max_delta_gobs_pct": f"{pct:.2f}" if np.isfinite(pct) else "nan",
-                })
-
-    # Write CSV
-    csv_path = os.path.join(tables_dir, "mice_morph_threshold_sensitivity.csv")
-    with open(csv_path, "w", newline="") as f:
-        w = csv.DictWriter(f, fieldnames=["proxy", "type", "threshold", "max_delta_gobs_pct"])
+    for proxy, varied in VARIED.items():
+        for key, label in TYPES[proxy].items():
+            seed = [deltas(args, tag(*DEFAULT), tag(*DEFAULT, s), key) for s in SEEDS]
+            spread = {b: max((d[b] for d in seed if d[b] is not None), default=None) for b in range(1, 5)}
+            for bt, gr in varied:
+                thr = bt if proxy == "B/T" else gr
+                dv = deltas(args, tag(*DEFAULT), tag(bt, gr), key)
+                row = {"proxy": proxy, "type": label, "threshold": thr}
+                for b in range(1, 5):
+                    row[f"delta_bin{b}_pct"] = fmt(dv[b])
+                    row[f"seed_spread_bin{b}_pct"] = fmt(spread[b])
+                rows.append(row)
+                print(f"  {proxy:>4} {label:>6} {thr:.2f}  " + "  ".join(
+                    f"bin {b}: {fmt(dv[b]) or '-':>6} % (seeds {fmt(spread[b]) or '-':>6} %)" for b in range(1, 5)))
+    path = os.path.join(args.outdir, "mice_morph_threshold_sensitivity.csv")
+    with open(path, "w", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
         w.writeheader()
         w.writerows(rows)
-    print(f"\nCSV written to {csv_path}")
+    print("Wrote", path)
 
 
-def parse_args():
-    p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--morphfile", required=True,
-                   help="Path to 07_morph_raw.fits")
-    p.add_argument("--isodir", required=True,
-                   help="Directory containing mice2_isolated_bin{1..4}.fits")
-    p.add_argument("--outdir",
-                   default="/srv/data/robert/mice2/data/MICE2_isolated/sensitivity/",
-                   help="Output directory for per-threshold stacks")
-    p.add_argument("--tables-dir",
-                   default="../../tables/",
-                   help="Output directory for CSV summary")
-    return p.parse_args()
+def main():
+    p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    p.add_argument("--morphfile", required=True)
+    p.add_argument("--isodir", required=True)
+    p.add_argument("--outdir", required=True)
+    p.add_argument("--compare-only", action="store_true",
+                   help="skip 07_morphology_split.py and compare existing runs")
+    args = p.parse_args()
+    if not args.compare_only:
+        for bt, gr in [DEFAULT] + VARIED["B/T"] + VARIED["g-r"]:
+            run_split(args, bt, gr)
+        for s in SEEDS:
+            run_split(args, *DEFAULT, seed=s)
+    compare(args)
 
 
 if __name__ == "__main__":
-    args = parse_args()
-    run(args.morphfile, args.isodir, args.outdir, args.tables_dir)
+    main()

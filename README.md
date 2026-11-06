@@ -1,81 +1,60 @@
-# Weak-lensing radial acceleration relation of KiDS-1000 isolated galaxies (HMG)
+# Weak-lensing radial acceleration relation of KiDS-1000 isolated galaxies: a test of Hyperconical Modified Gravity
 
-Reproduction pipeline for the paper testing **Hyperconical Modified Gravity (HMG)** against the weak-lensing radial acceleration relation (RAR) of isolated galaxies in KiDS-1000, compared with MOND and ΛCDM.
+Code and data to reproduce every figure and table of the paper (R. Monjo and R. Ullah, A&A, aa62683-26). The paper compares Hyperconical Modified Gravity (HMG), MOND and ΛCDM with the weak-lensing radial acceleration relation (RAR) of isolated KiDS-1000 galaxies (Brouwer et al. 2021).
 
-Everything regenerates **from scratch with no hidden dependencies**: all code reads only from `./data` and writes only to `./outputs` — no absolute paths, no external directories, no cluster-specific setup.
+The repository is self-contained: the scripts read only `./data` and write only to `./outputs`.
 
 ## Quick start
 
 ```bash
-cd scripts_replicable
-pip install numpy scipy matplotlib      # Python >= 3.9
-python run_all.py
+pip install -r requirements.txt      # Python >= 3.10
+python run_all.py                    # about one hour on one core
 ```
 
-That single command produces every figure (PNG + PDF) and every CSV/TeX table in `./outputs`.
+## Scripts
 
-## What each script does
-
-| Script | Output | Paper |
+| Script | Output (`./outputs`) | Paper |
 |---|---|---|
-| `run_all.py` | orchestrates everything below | — |
-| `hmg_model.py` | *library*: constants, HMG/MOND/CDM models, KiDS data, `./data` loaders | — |
-| `make_fig1_kids_rar.py` | `fig1_kids_rar.{png,pdf}` | **Fig. 1** (body) |
-| `make_figA1_regimes.py` | `figA1_regimes.{png,pdf}` | **Fig. A.1** |
-| `make_reference_systems.py` | `reference_systems.csv` (+ per-object CSVs) | gold stars of Fig. A.2 |
-| `make_figA2_landscape.py` | `figA2_landscape.{png,pdf}` | **Fig. A.2** |
-| `make_tables.py` | `tab_model_comparison.csv`, `tab_mice_comparison.csv` | **Table 1** (model comparison) + **Table 2** (MICE) |
-| `xcop_rnei_nsig.py` | `xcop_rnei_nsig.txt` | X-COP n_σ for Table A.1 |
-| `make_tab_regimes.py` | `tab_regimes.csv`, `tab_regimes_body.tex` | **Table A.1** |
-| `forward_lensing_delta_sigma.py` | `forward_lensing_results.csv` | **Appendix A.4** (Abel FWD vs SIS kernel, ~5 min) |
-| `compare_fwd_models.py` | `compare_fwd_models.csv` | **Appendix A.4** (HMG/MOND/CDM ranking under both kernels, ~20–30 min) |
+| `hmg_model.py` | library: constants, HMG, MOND and CDM models, KiDS data, shared fits | — |
+| `make_tables.py` | `tab_model_comparison.csv`, `tab_morph_pairs.csv` | Table 1, morphological pairs of Sect. 3 |
+| `morph_threshold_sensitivity.py` | `morph_threshold_sensitivity.csv` | proxy thresholds, Sect. 2.1 |
+| `10_lin_chi2_table2.py` | `tab_mice_comparison.csv` | Table 2 |
+| `xcop_s_rnei_joint.py` | `xcop_s_rnei_grid.csv`, `xcop_s_rnei_ridge.csv`, `xcop_s_rnei_profile.png` | X-COP row of Table A.1, Fig. A.2 |
+| `fit_external_udg.py` (uses `fit_hmg_udg.py`) | `udg_systems.csv`, `mightee_per_galaxy.csv` | UDG rows of Table A.1, Fig. A.2 |
+| `make_reference_systems.py` | `reference_systems.csv`, per-object CSV files | external systems of Table A.1 and Fig. A.2 |
+| `make_tab_regimes.py` | `tab_regimes.csv`, `tab_regimes_body.tex` | Table A.1 |
+| `fit_gastaldello_s.py` | `gastaldello_s_fit.csv` | X-ray groups of Fig. A.2 |
+| `make_fig1_kids_rar.py` | `fig1_kids_rar.{png,pdf}` | Fig. 1 |
+| `make_figA1_regimes.py` | `figA1_regimes.{png,pdf}` | Fig. A.1 |
+| `make_figA2_landscape.py` | `figA2_landscape.{png,pdf}` | Fig. A.2 |
+| `forward_lensing.py` | `forward_lensing_table_A2.csv`, `forward_lensing_kernel.csv` | Appendix A.4, Table A.2 |
+| `forward_projection_convergence.py` | `forward_projection_convergence.json` | Appendix A.4 (numerical convergence) |
+| `run_all.py` | runs all of the above in order | — |
 
-Figure and script names follow the paper numbering (Fig. 1 in the body; Fig. A.1 and A.2 in the appendix); see `SCRIPT_NAMING.md`.
+## Statistics
 
-- **Fig. 1** — KiDS-1000 RAR: four stellar-mass bins (top) plus morphological subsets (bottom), with HMG, MOND and CDM curves.
-- **Fig. A.1** — the two competing terms of ξ²ₛ (regime decomposition).
-- **Fig. A.2** — (a) the `(r_eq, s)` dynamical-regime map with a `g_s/a₀` colour bar; (b) the χ²ᵥ(s) landscape, sharing the `s` axis. Gold stars are the external reference systems from `reference_systems.csv`; **both** branch stars are filled where the `s ↔ 1/s` branches are statistically indistinguishable (Wilks Δχ² < 4), otherwise the disfavoured branch is drawn open.
+All reduced chi-squared values follow Sect. 2.4 of the paper: diagonal KiDS uncertainties and, for each data point, the one-sided width (16th or 84th percentile) on the side facing the prediction, in log10 g (`chi2_nu_log`) or in g (`chi2_nu_lin`); `chi2_nu = chi2 / (N - k)` with k the number of parameters fitted to the KiDS data. Model parameters are the minima of `chi2_nu_log`.
 
-### Reference systems (Fig. A.2 gold stars)
+## Morphological subsets
 
-`make_reference_systems.py` fits **both** the `s < 1` (neighbourhood) and `s > 1` (Hubble) HMG branches for each external system. The mirror branch is **fitted**, never assumed = 1/s (that equality holds only in the deep limit; e.g. gal-gal WL `s = 2.76` → mirror `0.37`, not `1/2.76 = 0.36`):
+The morphological and colour profiles of Brouwer et al. (2021, Fig. 8; split at Sérsic index n = 2 and at u − r = 2.5) are tabulated against g_bar = G M_gal / R², with M_gal = M* (1 + f_cold) and the cold-gas relation of Boselli et al. (2014). The two subsets of each split have the same stellar-mass distribution. To evaluate HMG, whose Hubble term depends on R, g_bar is converted to R with the isolated MICE2 lenses: the two MICE subsets of each split (bulge fraction B/T = 0.5; rest-frame g − r = 0.6) are reduced to the same stellar-mass distribution, and both share the map g_bar(R) = (⟨√(G M_gal)⟩ / R)² (`data/morph_gbar_r_mice.txt`, median masses in `data/morph_mstar_mice.csv`). `tab_morph_pairs.csv` gives, for each split, the separation of the two basin minima, the quiescent to star-forming ratio of the observed and predicted accelerations, and the star-forming fit evaluated on the quiescent data. `morph_threshold_sensitivity.py` repeats the fits with the maps obtained by moving the MICE2 cuts (B/T = 0.45; g − r = 0.55, 0.65) and with other seeds of the random mass matching (`data/morph_map_variants/`).
 
-- **SPARC** — 50 of 61 McGaugh (2007) galaxies (≥ 4 points)
-- **HIFLUGCS** — clusters (Monjo & Banik 2025)
-- **X-COP** — clusters (Eckert 2022); fitted with the 2-parameter (s, r_nei) joint model (Model C), the only system needing two parameters (its extended gas profile makes a single scalar s inadequate)
-- **gal-gal WL** — Mistele (2024) stacked circular velocities
-- **Milky Way** — two-branch fit (radial + vertical constraints)
+## External systems (Table A.1, Fig. A.2)
+
+* SPARC galaxies (McGaugh 2007), HIFLUGCS clusters (Monjo & Banik 2025) and the galaxy–galaxy lensing RAR of Mistele et al. (2024): both HMG branches (s < 1 and s > 1) are fitted; samples of objects are summarised by the median and the 16th–84th percentiles.
+* X-COP clusters (Eckert et al. 2022): s and the neighbourhood radius r_nei are fitted jointly per cluster. With r_nei free, chi2(s) is shallow, so s is weakly constrained.
+* Gas-rich UDGs (Mancera Piña et al. 2022): joint fit of one s; MIGHTEE UDGs (Ponomareva et al. 2021): s per galaxy, n_σ at the median s.
+* Milky Way: values of the radial and vertical analysis (`data/external_reference/mw_chi2nu_MI.txt`).
+* X-ray groups (Gastaldello et al. 2007): s per group from the NFW reconstruction (`data/gastaldello2007.csv`).
 
 ## Data (`./data`)
 
-Small committed text files (self-contained). Each `external_reference/*` file carries a provenance header. Sources: Brouwer et al. (2021, KiDS-1000), McGaugh (2007, SPARC), Mistele et al. (2024), Eckert et al. (2022, X-COP), Mancera Piña et al. (2022, UDGs), and the MICE ΛCDM mocks (produced by the separate `MICE_n-body` pipeline). The four-bin KiDS RAR and the MICE fallback band are hard-coded in `hmg_model.py` from the Brouwer+2021 published values.
+KiDS-1000 lensing RAR of isolated galaxies (Brouwer et al. 2021): the four stellar-mass bins are in `hmg_model.py`, the morphological profiles in `Fig-8_RAR-KiDS-isolated_*.txt`. Every file in `external_reference/` starts with a header giving its source. The MICE2 files (`rar_band_b21_bin*.txt`, `morph_*_allbins.txt`, `morph_gbar_r_mice.txt`, `morph_mstar_mice.csv`, `morph_map_variants/`) are produced by the MICE pipeline below.
 
-## Regenerating the MICE ΛCDM mocks (optional — not needed to reproduce the paper)
+## MICE2 pipeline (`MICE_n-body/`)
 
-The MICE ΛCDM products consumed above (`data/rar_band_b21_bin{1..4}.txt`, `data/morph_*_allbins.txt`, `data/morph_gbar_r_mice.txt`) are **committed**, so `python run_all.py` reproduces every figure and table with **no external download**. Regenerating those products from the N-body catalogue is optional and lives in [`MICE_n-body/`](MICE_n-body/): it needs a free CosmoHub account to download the MICE2 catalogue (~2 GB, not redistributable), then `bash MICE_n-body/scripts/run_photoz_pipeline.sh`. See [`MICE_n-body/README_pipeline.md`](MICE_n-body/README_pipeline.md).
+The ΛCDM comparison uses the MICE2 simulation (Crocce et al. 2015; Carretero et al. 2015) over 1024 deg², with the isolation criteria of Brouwer et al. (2021). `MICE_n-body/scripts/run_mice_pipeline.sh` downloads the catalogues from CosmoHub (free account; about 25 GB), selects the isolated lenses with true and perturbed redshifts, stacks the tangential shear of background galaxies, builds the isolation band and the morphological subsets, and copies the products to `data/`. See `MICE_n-body/README_pipeline.md`.
 
-## The model (`hmg_model.py`)
+## License and citation
 
-- **HMG** — Hyperconical Modified Gravity (Monjo 2025, ApJ 982, 70; Monjo & Banik 2025, ApJ 992, 35). `gobs_hmg`: `ξ²ₛ = 1/s³ + v_H²/(12 v_N²)`; morphological deep limit via `hmg_pred_dl` (`x = s^{3/2}`).
-- **MOND** — McGaugh interpolation, `a₀ = 1.20×10⁻¹⁰ m/s²` fixed.
-- **CDM** — truncated NFW (Moster+2013 SHMR, Dutton & Macciò 2014 concentration) + a two-halo power law (Tinker+2010 bias), one global amplitude.
-
-## Notes
-
-- This pipeline is the source of truth for the primary HMG/MOND/CDM χ² values (they match the manuscript). The MICE ΛCDM χ² entries in `tab_mice_comparison.csv` are literature values (flagged in the `source` column), not re-derived here.
-- Table A.1's last column is the reduced χ² (`χ²_ν = χ²/(N−k)`) of the HMG prediction vs `g_obs`, computed in log-acceleration space with the asymmetric 16th–84th-percentile weights (`σ⁺` if the model over-predicts, `σ⁻` if it under-predicts) at each row's `s`. Single stacked curves (KiDS, MW, gal-gal WL, UDGs) are fit jointly; multi-object samples (SPARC, HIFLUGCS, X-COP) are fit per object and the median is reported. The Milky Way `χ²_ν` is quoted from the vertical-gravity analysis (nbar1 = MI, the best reconstruction; degenerate between the `s ≈ 0.50` and `s ≈ 2.00` branches).
-- `make_fig_gs_fields.py` and `make_fig_xi_req.py` are **auxiliary/exploratory** diagnostics — not part of the paper and not in `run_all.py`. Run them by hand if wanted.
-
-## Auxiliary scripts (not in `run_all.py`)
-
-These scripts reproduce specific results but require either longer run times or a pre-computed checkpoint. They are **not** called by `run_all.py`.
-
-| Script | Output | Paper | Notes |
-|---|---|---|---|
-| `10_lin_chi2_table2.py` | stdout only | Table 2 (LIN column) | Recomputes χ²_ν(lin) for all Table 2 rows using the asymmetric toward-model convention. Prints results; writes no files. |
-| `forward_projection_convergence.py` | `outputs/forward_projection_convergence.json` | Appendix A.4 (convergence and clipping) | Repeats the forward projection of HMG, MOND and CDM in the four mass bins with all numerical settings refined at once and reports the maximum change in `g_fwd` and in the per-bin χ²_ν, and the grid points where `rho_eff <= 0`. A few minutes. |
-| `fwd_global_refit_v2.py` | `outputs/fwd_global_refit_v2.{json,csv}` | Table A.2 (FWD-opt rows) | Global refit with the FWD kernel; ν = 59. **Two sequential steps:** (1) run `fwd_global_refit.py` (~1–3 h) to produce `outputs/fwd_global_refit_checkpoint.json`; (2) run `fwd_global_refit_v2.py` (~5 min) to add the CDM row and write the final table. |
-
-## License
-
-Code: MIT (see [`LICENSE`](LICENSE)). Data files under `data/` are redistributed from their original published sources and remain subject to those sources' terms.
+Code: MIT (`LICENSE`). Data files are redistributed from the cited sources and remain subject to their terms. Please cite the paper and the archived version of this repository (`CITATION.cff`).

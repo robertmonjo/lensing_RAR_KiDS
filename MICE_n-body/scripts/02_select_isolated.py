@@ -3,15 +3,25 @@
 Isolation criterion: a lens galaxy is isolated if it has no neighbour with
   (i)   projected separation r_perp < 3 Mpc (physical at lens redshift)
   (ii)  line-of-sight |Delta_v| < 1000 km/s
-  (iii) neighbour stellar mass M_nb > 0.25 * M_lens
+  (iii) neighbour stellar mass M_nb > 0.25 * M_lens  (local pipeline)
+      or M_nb > 0.10 * M_lens  (B21 mode, --b21)
 
 All distances are physical (not comoving).
 
 Stellar mass bins (in M_sun, not h^-2 M_sun):
-  Bin 1: [10^9.5,  10^10.3)
-  Bin 2: [10^10.3, 10^10.6)
-  Bin 3: [10^10.6, 10^10.8)
-  Bin 4: [10^10.8, 10^11.2)
+
+  Local pipeline (default):
+    Bin 1: [10^9.5,  10^10.3)
+    Bin 2: [10^10.3, 10^10.6)
+    Bin 3: [10^10.6, 10^10.8)
+    Bin 4: [10^10.8, 10^11.2)
+
+  B21-compliant (--b21):
+    Bin 1: [10^8.5,  10^10.3)
+    Bin 2: [10^10.3, 10^10.6)
+    Bin 3: [10^10.6, 10^10.8)
+    Bin 4: [10^10.8, 10^11.0)
+    Additional cuts: sdss_r_true < 20, 0.1 < z_lens < 0.5
 
 Requirements:
     pip install astropy numpy scipy
@@ -19,6 +29,11 @@ Requirements:
 Usage:
     python 02_select_isolated.py --input ../data/MICE2_isolated/mice2_raw.fits \
                                   --outdir ../data/MICE2_isolated/
+
+    # B21-compliant mode (requires mice2_b21_full.fits from cosmohub_download_b21.py):
+    python 02_select_isolated.py --b21 \
+                                  --input ../data/MICE2_b21/mice2_b21_full.fits \
+                                  --outdir ../data/MICE2_b21/
 """
 
 import argparse
@@ -32,13 +47,20 @@ from scipy.spatial import cKDTree
 COSMO = FlatLambdaCDM(H0=70.0, Om0=0.25)
 H0_KMS = 70.0  # km/s/Mpc
 
-# B21 isolation parameters
-R_ISO_MPC = 3.0          # physical Mpc
+# Isolation parameters
+R_ISO_MPC = 3.0          # physical Mpc (same for local and B21)
 DV_ISO_KMS = 1000.0      # km/s
-FRAC_MASS = 0.25         # neighbour mass fraction
 
-# Stellar mass bin edges in log10(M_sun)  [NOT h^-2 M_sun]
-BIN_EDGES_MSUN = [9.5, 10.3, 10.6, 10.8, 11.2]
+# Local pipeline defaults
+FRAC_MASS_LOCAL = 0.25
+BIN_EDGES_LOCAL = [9.5, 10.3, 10.6, 10.8, 11.2]   # log10(M_sun)
+
+# B21-compliant values (Brouwer+2021 Sect. 2.2)
+FRAC_MASS_B21 = 0.10
+BIN_EDGES_B21 = [8.5, 10.3, 10.6, 10.8, 11.0]     # log10(M_sun)
+Z_LENS_MIN_B21 = 0.10
+Z_LENS_MAX_B21 = 0.50
+MAG_R_MAX_B21  = 20.0    # sdss_r_true < 20
 
 # lmstellar in MICE is log10(M_star / h^-2 M_sun); h=0.70 => offset = 2*log10(0.7)
 H_MICE = 0.70
@@ -64,6 +86,9 @@ def parse_args():
                    help="Output file suffix, e.g. '_photoz' -> mice2_isolated_photoz_bin{b}.fits")
     p.add_argument("--seed", type=int, default=42,
                    help="RNG seed for photo-z noise (reproducibility)")
+    p.add_argument("--b21", action="store_true",
+                   help="B21-compliant selection: FRAC_MASS=0.10, r<20, 0.1<z<0.5, "
+                        "B21 mass bin edges. Requires sdss_r_true column in input.")
     return p.parse_args()
 
 
@@ -81,18 +106,20 @@ def angular_separation_rad(ra1, dec1, ra2, dec2):
     return 2.0 * np.arcsin(np.sqrt(np.clip(a, 0.0, 1.0)))
 
 
-def find_isolated(ra, dec, z, lm_msun, chunk_dz=0.02, photoz_sigma=0.0, rng=None):
+def find_isolated(ra, dec, z, lm_msun, frac_mass, chunk_dz=0.02, photoz_sigma=0.0, rng=None):
     """
     Returns boolean mask: True = isolated galaxy.
 
     Uses a KD-tree on (x, y, z) Cartesian coordinates on the unit sphere,
     with a conservative angular search radius and then fine-grained checks.
 
+    frac_mass: neighbour mass fraction threshold (M_nb > frac_mass * M_lens to fail).
     photoz_sigma > 0: add Gaussian noise sigma*(1+z) to z before the |Δz|
     line-of-sight criterion, emulating KiDS photometric redshift errors (B21 Sect. 5.3).
     """
     n = len(ra)
     isolated = np.ones(n, dtype=bool)
+    log_frac = np.log10(frac_mass)
 
     # Photo-z noise applied to ALL galaxies (lenses + neighbours)
     if photoz_sigma > 0.0:
@@ -115,13 +142,14 @@ def find_isolated(ra, dec, z, lm_msun, chunk_dz=0.02, photoz_sigma=0.0, rng=None
     # Process in comoving redshift chunks to limit memory
     z_bins = np.arange(z.min(), z.max() + chunk_dz, chunk_dz)
 
-    # We need all potential neighbours (lmstellar > LM_MIN_NEIGHBOUR)
-    nb_mask = lm_msun >= 9.5  # log10(M/M_sun) > 9.5
+    # Neighbour candidates: M_star > 10^9.5 M_sun (consistent minimum across all bins)
+    # LM_MIN_NEIGHBOUR = 9.5 in log10(M_sun) units
+    nb_mask = lm_msun >= LM_MIN_NEIGHBOUR
 
     tree = cKDTree(xyz[nb_mask])
     idx_nb = np.where(nb_mask)[0]
 
-    print(f"  Total galaxies: {n:,}, potential neighbours: {nb_mask.sum():,}")
+    print(f"  Total galaxies: {n:,}, potential neighbours (M>10^9.5): {nb_mask.sum():,}")
 
     for i, (z_lo, z_hi) in enumerate(zip(z_bins[:-1], z_bins[1:])):
         lens_mask = (z >= z_lo) & (z < z_hi)
@@ -152,7 +180,7 @@ def find_isolated(ra, dec, z, lm_msun, chunk_dz=0.02, photoz_sigma=0.0, rng=None
                 # Use photo-z (z_search) for the line-of-sight criterion
                 if abs(z_search[ni] - z_search[li]) > dz_max:
                     continue
-                if lm_msun[ni] < lm_msun[li] + np.log10(FRAC_MASS):
+                if lm_msun[ni] < lm_msun[li] + log_frac:
                     continue
 
                 # Precise projected physical separation check (use true z for d_A)
@@ -172,6 +200,16 @@ def main():
     args = parse_args()
     os.makedirs(args.outdir, exist_ok=True)
 
+    # Choose selection parameters
+    if args.b21:
+        frac_mass = FRAC_MASS_B21
+        bin_edges = BIN_EDGES_B21
+        print("Mode: B21-compliant (FRAC_MASS=0.10, r<20, 0.1<z<0.5, B21 mass bins)")
+    else:
+        frac_mass = FRAC_MASS_LOCAL
+        bin_edges = BIN_EDGES_LOCAL
+        print("Mode: local pipeline (FRAC_MASS=0.25, local mass bins)")
+
     print(f"Loading {args.input} ...")
     with fits.open(args.input, memmap=True) as hdul:
         t = hdul[1].data
@@ -181,17 +219,28 @@ def main():
         lm = t["lmstellar"].astype(float)  # log10(M_star/h^-2 M_sun)
         lm_msun = lm + LOG10_H2            # log10(M_star/M_sun)
         lmhalo = t["lmhalo"].astype(float)
+        if args.b21:
+            mag_r = t["sdss_r_true"].astype(float)
 
     print(f"Loaded {len(ra):,} galaxies")
 
+    # B21 pre-selection: magnitude and redshift cuts on lenses
+    # (applied before isolation; all galaxies remain available as neighbours)
+    if args.b21:
+        lens_presel = (mag_r < MAG_R_MAX_B21) & (z >= Z_LENS_MIN_B21) & (z <= Z_LENS_MAX_B21)
+        n_presel = lens_presel.sum()
+        print(f"B21 pre-selection (r<20, 0.1<z<0.5): {n_presel:,} lens candidates "
+              f"(of {len(ra):,} total)")
+    else:
+        lens_presel = np.ones(len(ra), dtype=bool)
+
     # Stellar mass bins in log10(M_sun)
-    bin_edges = BIN_EDGES_MSUN
     n_bins = len(bin_edges) - 1
 
     # Build mass-bin masks (lenses only; all galaxies are neighbour candidates)
     bin_masks = []
     for b in range(n_bins):
-        m = (lm_msun >= bin_edges[b]) & (lm_msun < bin_edges[b + 1])
+        m = lens_presel & (lm_msun >= bin_edges[b]) & (lm_msun < bin_edges[b + 1])
         bin_masks.append(m)
         print(f"  Bin {b+1} [{bin_edges[b]:.1f},{bin_edges[b+1]:.1f}): {m.sum():,} galaxies")
 
@@ -201,10 +250,11 @@ def main():
         lens_candidate |= m
 
     print(f"\nRunning isolation selection on {lens_candidate.sum():,} lens candidates ...")
+    print(f"  FRAC_MASS = {frac_mass}")
     if args.photoz_sigma > 0.0:
         print(f"  Photo-z noise: sigma={args.photoz_sigma}, seed={args.seed}")
     rng = np.random.default_rng(args.seed) if args.photoz_sigma > 0.0 else None
-    iso = find_isolated(ra, dec, z, lm_msun,
+    iso = find_isolated(ra, dec, z, lm_msun, frac_mass,
                         photoz_sigma=args.photoz_sigma, rng=rng)
 
     for b in range(n_bins):
@@ -212,6 +262,9 @@ def main():
         print(f"Bin {b+1}: {sel.sum():,} isolated lenses (out of {bin_masks[b].sum():,})")
 
         outfile = os.path.join(args.outdir, f"mice2_isolated{args.suffix}_bin{b+1}.fits")
+        extra_cols = []
+        if args.b21:
+            extra_cols.append(fits.Column("sdss_r_true", "D", array=mag_r[sel]))
         cols = fits.BinTableHDU.from_columns([
             fits.Column("ra_gal",   "D", array=ra[sel]),
             fits.Column("dec_gal",  "D", array=dec[sel]),
@@ -219,7 +272,7 @@ def main():
             fits.Column("lmstellar","D", array=lm[sel]),
             fits.Column("lm_msun",  "D", array=lm_msun[sel]),
             fits.Column("lmhalo",   "D", array=lmhalo[sel]),
-        ])
+        ] + extra_cols)
         cols.writeto(outfile, overwrite=True)
         print(f"  Saved: {outfile}")
 

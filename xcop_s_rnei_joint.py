@@ -1,22 +1,14 @@
 """
 xcop_s_rnei_joint.py -- Joint (s, r_nei) fit for X-COP clusters.
 
-Extends xcop_rnei_nsig.py (Model A, s=1) to a 2-parameter model where both
-the neighbourhood amplitude s and the clip radius r_nei are free.
+Each cluster is fitted on a grid of the vicinity scale s and the clip radius r_nei.
+For comparison the script also evaluates r_nei alone with s = 1 (model A); the
+joint fit is model C.
 
-Three models compared
----------------------
-  A  r_nei only, s=1 (xcop_rnei_nsig.py baseline, n_sigma=0.918)
-  B  scalar s,   r_nei=inf (no clip; gives n_sigma=2.731)
-  C  (s, r_nei) jointly -- this script
-
-Key result
-----------
-The chi2_nu(s) profile (Model C, r_nei profiled out) is FLAT for s in [0.7, 10]:
-the data cannot constrain s when r_nei is free.  The minimum is at s~0.9 with
-n_sigma~0.87, barely better than Model A (0.916).  Conclusion: the r_nei model
-(s=1) is the correct parsimonious parametrisation for X-COP; a joint fit does
-not provide a meaningful s measurement.
+The chi2_nu(s) profile with r_nei profiled out is shallow for s between ~0.7 and
+~10, so s and r_nei are strongly degenerate for these hydrostatic profiles.
+Table A.1 and Fig. A.2 quote the median and 16th-84th percentiles of the
+per-cluster best-fit s, and the median n_sigma, from this fit.
 
 The r_nei_best(s) ridge shows the degeneracy: larger s -> larger r_nei to
 compensate, with a roughly power-law correlation r_nei ~ s^alpha per cluster.
@@ -46,7 +38,7 @@ OUT_PNG = HERE / "outputs" / "xcop_s_rnei_profile.png"
 OUT_GRID= HERE / "outputs" / "xcop_s_rnei_grid.csv"
 OUT_RIDGE=HERE / "outputs" / "xcop_s_rnei_ridge.csv"
 
-# ── Constants (verbatim from xcop_rnei_nsig.py) ───────────────────────────────
+# ── Constants ───────────────────────────────
 c0      = 3e8
 Msol    = 1.9891e30
 kpc     = 3261.8116478174 * 365*24*3600 * c0
@@ -70,7 +62,7 @@ def hmg_gamma0(q):
 
 def hmg_predict(M_enc_kg, R_ref_kpc, R0_kpc, s=1.0):
     """HMG acceleration with amplitude s and clip at R0_kpc.
-    eps^2 = 1/6 + rho_enc/(s^3 * rho_vac).  s=1 reproduces xcop_rnei_nsig."""
+    eps^2 = 1/6 + rho_enc/(s^3 * rho_vac)."""
     M  = np.asarray(M_enc_kg, float)
     Rm = np.asarray(R_ref_kpc, float) * kpc
     gN  = GN * M / Rm**2
@@ -144,6 +136,13 @@ def main():
         best_c2, best_s, best_r = np.inf, 1.0, rnei_pub[cname]
         for sv in S_GRID:
             for rv in RNEI_GRID:
+                N, c2 = chi2nu(arr, rv, s=sv)
+                if c2 < best_c2:
+                    best_c2, best_s, best_r = c2, sv, rv
+        # Local refinement: s within +/-15 per cent (0.2 per cent steps), r_nei in 10 kpc steps.
+        s0, r0 = best_s, best_r
+        for sv in np.geomspace(s0 / 1.15, s0 * 1.15, 121):
+            for rv in np.arange(max(RNEI_GRID[0], r0 - 200.0), min(RNEI_GRID[-1], r0 + 200.0) + 1.0, 10.0):
                 N, c2 = chi2nu(arr, rv, s=sv)
                 if c2 < best_c2:
                     best_c2, best_s, best_r = c2, sv, rv

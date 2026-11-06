@@ -10,7 +10,7 @@ HMG references: Monjo (2025, ApJ 982, 70); Monjo & Banik (2025, PASA).
 from pathlib import Path
 import math
 import numpy as np
-from scipy.optimize import brentq
+from scipy.optimize import brentq, minimize_scalar
 
 DATA_DIR = Path(__file__).resolve().parent / "data"
 
@@ -181,6 +181,14 @@ def gobs_hmg(r_kpc, ms, s):
     a_n = v2n / r
     return np.sqrt(np.maximum(a_n*(a_n + 2.0*C_KMS/T0*_cos_over_gamma(xi2)), 0.0)) * CODE_TO_SI
 
+def gobs_hmg_gbar(gbar, r_kpc, s):
+    """Full HMG at given baryonic acceleration gbar [SI] and radius r [kpc] (v_N^2 = gbar r)."""
+    gc  = np.asarray(gbar, float) / CODE_TO_SI
+    r   = np.asarray(r_kpc, float)
+    v2n = gc * r
+    xi2 = 1.0/s**3 + (r / T0)**2/(12.0*v2n + 1e-60)
+    return np.sqrt(np.maximum(gc*(gc + 2.0*C_KMS/T0*_cos_over_gamma(xi2)), 0.0)) * CODE_TO_SI
+
 def _q_dl(x):
     delta = abs(x**2 - 1) / (x**2 + 1)
     s2 = SIN2_GU + (1.0 - SIN2_GU) * delta
@@ -304,3 +312,54 @@ def clip_morph_mice(data):
     gb, go, p16, p84 = data
     m = (gb >= GBAR_MORPH_MIN) & (gb <= GBAR_MORPH_MAX)
     return gb[m], go[m], p16[m], p84[m]
+
+
+# ==============================================================================
+# Fits shared by the table and Appendix A.4 scripts
+# ==============================================================================
+def fit_s_bin(bdata, mbar, lo=0.10, hi=0.99):
+    """Best-fit HMG scale of one mass bin on the s < 1 branch (minimum of the log chi2)."""
+    f = lambda s: _chi2_arr(gobs_hmg(_r_kpc(bdata), mbar, s), bdata)
+    return float(minimize_scalar(f, bounds=(lo, hi), method="bounded").x)
+
+
+def fit_zeta0_global():
+    """Global two-halo amplitude of the CDM model with Moster et al. (2013) halo masses."""
+    mh = [mhalo_from_mstar(ms) for ms in MSTAR]
+    f = lambda z: sum(_chi2_arr(gobs_cdm(_r_kpc(b), m, h, z), b) for b, m, h in zip(BINS, MBAR, mh))
+    return float(minimize_scalar(f, bounds=(0.1, 30.0), method="bounded").x)
+
+
+def morph_r_maps(path=None):
+    """g_bar -> radius maps of the mass-matched MICE morphological subsets
+    (MICE_n-body/scripts/09_morph_gbar_r.py): {late, early, blue, red} -> f(gbar [SI]) = r [kpc]."""
+    key = {"LATE_sersic": "late", "EARLY_sersic": "early", "BLUE_color": "blue", "RED_color": "red"}
+    blocks, cur = {}, None
+    for ln in open(path or DATA_DIR / "morph_gbar_r_mice.txt"):
+        if ln.startswith("### "):
+            cur = key.get(ln.split()[1])
+            if cur:
+                blocks[cur] = []
+            continue
+        a = ln.split()
+        if cur and len(a) == 2 and ln[:1].isdigit():
+            blocks[cur].append((float(a[0]), float(a[1])))
+    maps = {}
+    for k, v in blocks.items():
+        arr = np.array(v); o = np.argsort(arr[:, 1])
+        lgb, r = arr[o, 1], arr[o, 0] * MPC_TO_KPC
+        maps[k] = (lambda lgb, r: lambda g: np.interp(np.log10(g), lgb, r))(lgb, r)
+    return maps
+
+
+def morph_mstar():
+    """Median stellar mass [Msun] of the mass-matched MICE morphological subsets
+    (MICE_n-body/scripts/09_morph_gbar_r.py); both subsets of a split share it."""
+    key = {"LATE_sersic": "late", "EARLY_sersic": "early", "BLUE_color": "blue", "RED_color": "red"}
+    out = {}
+    for ln in open(DATA_DIR / "morph_mstar_mice.csv"):
+        p = ln.strip().split(",")
+        if p[0] in key:
+            out[key[p[0]]] = 10.0 ** float(p[1])
+    return out
+

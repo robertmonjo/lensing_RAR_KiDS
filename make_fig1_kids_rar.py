@@ -108,96 +108,26 @@ BINS = [
   ]),
 ]
 
-# ── MICE isolated per-bin data ────────────────────────────────────────────────
-# B21-style band (preferred): loaded from rar_band_b21_bin{b}.txt
-#   Columns: r_Mpc, log10_gbar, log10_gobs_ztrue, log10_gobs_zphotoz
-#   Band = range between z_true isolation (lower) and photo-z isolation (upper)
-#   Run MICE_n-body/scripts/run_photoz_pipeline.sh on Nieve to produce these files.
-#
-# Fallback (if B21 files not present): hardcoded NFW P16-P84 band from Nieve run
-#   Columns: log10_gbar, log10_gobs_mean, log10_gobs_p16, log10_gobs_p84
+# ── MICE isolation band per mass bin ─────────────────────────────────────────
+# data/rar_band_b21_bin{b}.txt (MICE_n-body/scripts/08_b21_band.py): envelope of the stacked
+# lensing RAR of the isolated MICE2 lenses selected with true and with perturbed redshifts,
+# shown over R_MIN_VALID_MPC <= r <= R_MAX_VALID_MPC (Brouwer et al. 2021, Sect. 5.3).
+#   Columns: r_Mpc, log10_gbar, log10_gobs_lo, log10_gobs_hi
 _MICE_B21_DIR = Path(__file__).resolve().parent / "data"
 
-def _load_mice_b21():
-    """Try to load B21-style MICE band. Return list of (gb, go, go_lo, go_hi) in SI.
-    Returns None if any file is missing."""
+
+def _load_mice_band():
+    """List of (g_bar, g_mid, g_lo, g_hi) in SI per mass bin."""
     result = []
     for b in range(1, 5):
-        fname = _MICE_B21_DIR / f"rar_band_b21_bin{b}.txt"
-        if not fname.exists():
-            return None
-        d = np.loadtxt(fname, comments="#")
-        # keep only R_MIN ≤ r ≤ R_MAX: MICE resolution limit (inner) + hook cut (outer)
-        mask = (d[:, 0] >= R_MIN_VALID_MPC) & (d[:, 0] <= R_MAX_VALID_MPC)
-        d = d[mask]
-        if len(d) == 0:
-            return None
-        # cols: r_Mpc, log10_gbar, log10_gobs_ztrue, log10_gobs_zphotoz
-        gb    = 10.0 ** d[:, 1]
-        go_lo = 10.0 ** d[:, 2]   # z_true (lower)
-        go_hi = 10.0 ** d[:, 3]   # photo-z (upper)
-        result.append((gb, go_lo, go_lo, go_hi))  # go_mean = go_lo (z_true clean signal)
+        d = np.loadtxt(_MICE_B21_DIR / f"rar_band_b21_bin{b}.txt", comments="#")
+        d = d[(d[:, 0] >= R_MIN_VALID_MPC) & (d[:, 0] <= R_MAX_VALID_MPC)]
+        go_lo, go_hi = 10.0 ** d[:, 2], 10.0 ** d[:, 3]
+        result.append((10.0 ** d[:, 1], np.sqrt(go_lo * go_hi), go_lo, go_hi))
     return result
 
-_MICE_B21 = _load_mice_b21()
-if _MICE_B21 is not None:
-    print(f"[MICE] Loaded B21-style band from {_MICE_B21_DIR}")
-else:
-    print(f"[MICE] B21 band files not found in {_MICE_B21_DIR}; using fallback NFW P16-P84")
 
-# Fallback: hardcoded NFW P16-P84 band
-# Columns: log10_gbar, log10_gobs_mean, log10_gobs_p16, log10_gobs_p84
-_MICE_NIEVE = [
-  np.array([  # Bin 1  (M* = 1.5e10 Msun,  13656 isolated galaxies)
-    [-11.642547,-10.684008,-10.818100,-10.582857],[-11.928261,-10.769792,-10.922257,-10.658843],
-    [-12.213976,-10.874314,-11.046218,-10.753594],[-12.499690,-10.997674,-11.189073,-10.868370],
-    [-12.785404,-11.139202,-11.349390,-11.002593],[-13.071118,-11.297634,-11.525111,-11.155084],
-    [-13.356833,-11.471342,-11.714476,-11.323804],[-13.642547,-11.658540,-11.915585,-11.506916],
-    [-13.928261,-11.857453,-12.126564,-11.702615],[-14.213976,-12.066419,-12.345926,-11.909090],
-    [-14.499690,-12.283950,-12.572372,-12.124679],[-14.785404,-12.508756,-12.804952,-12.348075],
-    [-15.071118,-12.739736,-13.042454,-12.577909],[-15.356833,-12.975964,-13.284295,-12.813279],
-    [-15.642547,-13.216671,-13.529824,-13.053296],
-  ]),
-  np.array([  # Bin 2  (M* = 3.2e10 Msun,  2320 isolated galaxies)
-    [-11.154567,-10.486310,-10.597948,-10.397603],[-11.440282,-10.547612,-10.675452,-10.449142],
-    [-11.725996,-10.626017,-10.772079,-10.517601],[-12.011710,-10.722805,-10.889544,-10.605086],
-    [-12.297425,-10.838420,-11.024929,-10.710948],[-12.583139,-10.972491,-11.178919,-10.837316],
-    [-12.868853,-11.123980,-11.348796,-10.982880],[-13.154567,-11.291391,-11.533223,-11.145141],
-    [-13.440282,-11.472997,-11.730437,-11.322573],[-13.725996,-11.667016,-11.937929,-11.513463],
-    [-14.011710,-11.871746,-12.154656,-11.715797],[-14.297425,-12.085636,-12.378924,-11.928133],
-    [-14.583139,-12.307322,-12.609230,-12.148546],[-14.868853,-12.535633,-12.844816,-12.375882],
-    [-15.154567,-12.769577,-13.085041,-12.609066],
-  ]),
-  np.array([  # Bin 3  (M* = 4.6e10 Msun,  1019 isolated galaxies)
-    [-10.932735,-10.376085,-10.490587,-10.279201],[-11.218450,-10.423514,-10.553973,-10.317196],
-    [-11.504164,-10.486012,-10.635244,-10.368698],[-11.789878,-10.565432,-10.736272,-10.437006],
-    [-12.075592,-10.662915,-10.857191,-10.523936],[-12.361307,-10.778799,-10.997332,-10.630179],
-    [-12.647021,-10.912647,-11.155654,-10.756395],[-12.932735,-11.063409,-11.329090,-10.901609],
-    [-13.218450,-11.229630,-11.516768,-11.063872],[-13.504164,-11.409659,-11.716385,-11.241525],
-    [-13.789878,-11.601824,-11.926114,-11.432436],[-14.075592,-11.804540,-12.144383,-11.634747],
-    [-14.361307,-12.016366,-12.370047,-11.846816],[-14.647021,-12.236029,-12.601820,-12.067112],
-    [-14.932735,-12.462418,-12.838671,-12.294349],
-  ]),
-  np.array([  # Bin 4  (M* = 8.9e10 Msun,   883 isolated galaxies)
-    [-10.681732,-10.253198,-10.393875,-10.150319],[-10.967446,-10.286357,-10.444575,-10.173344],
-    [-11.253160,-10.331577,-10.511939,-10.206511],[-11.538874,-10.391072,-10.596910,-10.253174],
-    [-11.824589,-10.466658,-10.701249,-10.315686],[-12.110303,-10.559569,-10.825438,-10.395390],
-    [-12.396017,-10.670351,-10.968333,-10.496192],[-12.681732,-10.798874,-11.129492,-10.617358],
-    [-12.967446,-10.944415,-11.306551,-10.756758],[-13.253160,-11.105810,-11.496986,-10.913911],
-    [-13.538874,-11.281609,-11.698350,-11.086984],[-13.824589,-11.470228,-11.909856,-11.273893],
-    [-14.110303,-11.670076,-12.129832,-11.472852],[-14.396017,-11.879641,-12.356847,-11.682066],
-    [-14.681732,-12.097549,-12.589765,-11.899952],
-  ]),
-]
-_MICE_NIEVE_PERBIN = []
-for _d in _MICE_NIEVE:
-    _gb  = 10.0**_d[:, 0]
-    _go  = 10.0**_d[:, 1]
-    _p16 = 10.0**_d[:, 2]
-    _p84 = 10.0**_d[:, 3]
-    _MICE_NIEVE_PERBIN.append((_gb, _go, _p16, _p84))
-
-MICE_PERBIN = _MICE_B21 if _MICE_B21 is not None else _MICE_NIEVE_PERBIN
+MICE_PERBIN = _load_mice_band()
 
 # ── MOND (simple interpolation function, a0 fixed) ────────────────────────────
 def mond_gobs(gbar):
@@ -424,26 +354,9 @@ print("=" * 62)
 # ── Morphology-specific r(g_bar) from MICE isolated lenses (breaks s<->1/s) ────
 # Restores the Hubble term h = v_H^2/(12 v_N^2) that the deep-limit fit dropped:
 #   xi_s^2 = 1/s^3 + h,  with r per RAR point supplied by the morphology-resolved
-#   MICE g_bar(r) mapping (data/morph_gbar_r_mice.txt, from Nieve 09_morph_gbar_r.py).
-import re as _re
-def _load_morph_r(key):
-    blocks = {}; cur = None
-    with open(os.path.join(DATA_DIR, "morph_gbar_r_mice.txt")) as _fh:
-        for ln in _fh:
-            m = _re.match(r"### (\w+)", ln)
-            if m:
-                cur = m.group(1); blocks[cur] = []; continue
-            if cur and ln[:1].isdigit():
-                a = ln.split()
-                if len(a) == 2:
-                    blocks[cur].append((float(a[0]), float(a[1])))
-    arr = np.array(blocks[key]); r = arr[:, 0] * MPC_TO_KPC; lgb = arr[:, 1]
-    o = np.argsort(lgb)
-    return lambda gbar_si: np.interp(np.log10(gbar_si), lgb[o], r[o])
-
-_MKEY = {"late": "LATE_sersic", "early": "EARLY_sersic",
-         "blue": "BLUE_color", "red": "RED_color"}
-_r_of = {k: _load_morph_r(v) for k, v in _MKEY.items()}
+#   MICE g_bar(r) mapping (data/morph_gbar_r_mice.txt, from MICE_n-body/scripts/09_morph_gbar_r.py).
+import hmg_model as _hm
+_r_of = _hm.morph_r_maps()
 
 def hmg_pred_full(gbar_si, s, r_kpc):
     """Full HMG for morphology: xi_s^2 = 1/s^3 + v_H^2/(12 v_N^2), r from MICE."""
@@ -483,7 +396,18 @@ print(f"  Color:  blue s={s_blue:.3f} chi2={c2_blue:.2f};  red  s={s_red:.3f}  c
 
 # ── CDM for morphological subsets: r from MICE mapping, M_star = MICE median,
 #    halo mass fitted per subset (xi0 fixed at the global best, as for mass bins) ──
-MSTAR_MORPH = {"late": 10**9.745, "early": 10**10.154, "blue": 10**9.610, "red": 10**9.888}
+def _morph_mstar():
+    """Median M* [Msun] of the mass-matched MICE morphological subsets (09_morph_gbar_r.py)."""
+    key = {"LATE_sersic": "late", "EARLY_sersic": "early", "BLUE_color": "blue", "RED_color": "red"}
+    out = {}
+    for ln in open(os.path.join(DATA_DIR, "morph_mstar_mice.csv")):
+        p = ln.strip().split(",")
+        if p[0] in key:
+            out[key[p[0]]] = 10.0 ** float(p[1])
+    return out
+
+
+MSTAR_MORPH = _morph_mstar()
 MBAR_MORPH = {k: m * (1 + f_cold(m)) for k, m in MSTAR_MORPH.items()}   # baryonic (M_star + cold gas)
 def _fit_mh_morph(key, gb, go, ge):
     ms = MBAR_MORPH[key]; rk = _r_of[key](gb); sig = ge / (go * np.log(10))
@@ -581,16 +505,18 @@ for i, (ax, ms, mh0, bcol, blbl) in enumerate(
             color="#00b4d8", lw=2.0, ls="--", alpha=0.60, zorder=5,
             label=rf"HMG per-bin $s={s_pb:.3f}$ ($\chi^2_\nu={c2_hmg_pb:.2f}$)")
 
-    # MICE isolated — narrow B21-style band (z_true lower, z_photo upper) in yellow
+    # MICE isolated — B21-style band (envelope of ztrue/zphotoz variants) in yellow
     gb_mice, go_mice, go_p16, go_p84 = MICE_PERBIN[i]
     # light blue: R > R_MIN_VALID_MPC region (B21 Fig. 5: unreliable KiDS isolation)
     ax.axvspan(GBAR_MIN, float(gb_mice.max()),
                color="#aed6f1", alpha=0.12, zorder=0)
-    # pure band (no centre line): z_true lower edge, z_photo upper edge
+    # band edges and fill
     _mice_fb = ax.fill_between(gb_mice, go_p16, go_p84,
                                color="#f1c40f", alpha=0.14, zorder=1)
     ax.plot(gb_mice, go_p16, color="#f1c40f", lw=0.8, ls="-", alpha=0.55, zorder=1)
     ax.plot(gb_mice, go_p84, color="#f1c40f", lw=0.8, ls="-", alpha=0.55, zorder=1)
+    # median line (geometric mean in linear = arithmetic mean in log)
+    ax.plot(gb_mice, go_mice, color="#b7950b", lw=1.2, ls="-", alpha=0.85, zorder=2)
 
     # Data
     ax.fill_between(gb[idx], bdata[idx,2], bdata[idx,3],
@@ -671,7 +597,7 @@ morph_panels = [
     (gb_late,  go_late,  ge_late,  s_late,  c2_late,
      gb_early, go_early, ge_early, s_early, c2_early,
      r'Sérsic index bins',
-     r'Late ($n<2.5$)', r'Early ($n\geq2.5$)',
+     r'Late ($n<2$)', r'Early ($n\geq2$)',
      C_LATE, C_EARLY, '^', 's',
      C_LATE_HMG, C_EARLY_HMG,
      _mice_sl, _mice_se,

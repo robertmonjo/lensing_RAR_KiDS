@@ -30,12 +30,6 @@ import csv
 import math
 import numpy as np
 import hmg_model as h
-import fit_hmg_udg as _F_mightee
-
-# MIGHTEE UDGs: joint HMG fit over the 6 Ponomareva+2021 galaxies (one V_out each).
-# s_best=0.0098 minimises chi2 (velocity space); nu = N - k = 6 - 1 = 5.
-_MIGHTEE_NU = len(_F_mightee.DATA) - 1          # 5
-_MIGHTEE_CHI2NU = _F_mightee.chi2_hmg(0.0098) / _MIGHTEE_NU   # ~1.72
 
 G = 4.30091727e-6      # (km/s)^2 kpc / Msun
 T0 = 14.11             # kpc / (km/s)
@@ -74,12 +68,13 @@ def derive(mbar, rsys, s):
                 domain=("Hubble" if s / seq > 1 else "neighb."))
 
 
-# Median baryonic-bin STELLAR masses (Brouwer+2021); the CSV omits them for the
-# stacked/morphological subsets, so they are supplied here (single source below).
+# Stellar masses: mean of each stellar-mass bin (Brouwer et al. 2021) and, for the
+# morphological subsets, the median of the mass-matched MICE subsets (hmg_model.morph_mstar).
+_MM = h.morph_mstar()
 KIDS_MSTAR = {
     "Global": 3.2e10, "Bin 1": 1.5e10, "Bin 2": 3.2e10, "Bin 3": 4.6e10, "Bin 4": 8.9e10,
-    "Late-type (n<2.5)": 9.5e9, "Early-type (n>=2.5)": 2.0e10,
-    "Blue (u-r)": 7.8e9, "Red (u-r)": 1.2e10,
+    "Late-type (n<2)": _MM["late"], "Early-type (n>=2)": _MM["early"],
+    "Blue (u-r)": _MM["blue"], "Red (u-r)": _MM["red"],
 }
 
 
@@ -192,7 +187,7 @@ def nsig_kids(csv_name, s):
         i = int(csv_name.split()[1]) - 1; b = h.BINS[i]
         gb = h.gbar_si(b[:, 0], h.MBAR[i]); rk = b[:, 0] * h.MPC_TO_KPC
         return math.sqrt(_chi2nu(hmg_gtot(gb, rk, s), b[:, 1], (b[:, 3] - b[:, 2]) / 2))
-    _MF = {"Late-type (n<2.5)": "Sersicbin_1", "Early-type (n>=2.5)": "Sersicbin_2",
+    _MF = {"Late-type (n<2)": "Sersicbin_1", "Early-type (n>=2)": "Sersicbin_2",
            "Blue (u-r)": "Colorbin_1", "Red (u-r)": "Colorbin_2"}
     if csv_name in _MF:
         gb, go, ge = h.load_morph(f"Fig-8_RAR-KiDS-isolated_{_MF[csv_name]}.txt")
@@ -232,11 +227,6 @@ def _vel_nsig(fname, mcol, rcol, vcol, errcols, s):
         rk.append(r); sg.append(2 * v * sv / r * C2S)
     gb, go, rk, sg = map(np.array, (gb, go, rk, sg))
     return math.sqrt(_chi2nu(hmg_gtot(gb, rk, s), go, sg))
-
-
-def nsig_udg(s):
-    # udg file cols: agc log10_mbar r_kpc v_obs sig_plus sig_minus v_newton
-    return _vel_nsig("udg_manceraPina2022.txt", 1, 2, 3, (4, 5), s)
 
 
 def nsig_ggwl(s):
@@ -296,41 +286,39 @@ def ref_row(disp, mbar, rsys, s, s_lo, s_hi, cite, s_disp=None, nsig_fn=None, se
 _sp = refs["SPARC"]
 _hi = refs["HIFLUGCS"]
 _gw = refs["gal-gal WL"]   # adopted s>1 branch = 2.76 [2.67,2.83] (per-bin HMG-pure fit, Mistele 2024)
-_xc = refs["X-COP"]        # Model C (s & r_nei jointly fitted): s = 0.95 [0.70,1.51]
-# X-COP: per-cluster best-fit s (median + 16-84 dispersion) and n_sigma from the same fit,
-# so the row is self-consistent (s, xi^2, g_s and n_sigma all at the fitted s) -- the clusters
-# prefer s slightly below the gamma=pi/3 equilibrium value (s=1) of the cited analysis.
-def _xcop_rnei_nsig():
-    """X-COP n_sigma from the CORRECT r_nei model (radially-varying epsilon_0 following the gas
-    density), reproduced by xcop_rnei_nsig.py -> outputs/xcop_rnei_nsig.txt.  A single scalar s is
-    NOT the right model for the X-COP hydrostatic profiles (see that script / the hydrostatic_
-    equilibrium_xcop model_comparison.md), so we do NOT use the scalar-s value (2.73) here.
-    Falls back to the published median 0.918 if the recompute output is absent."""
-    path = os.path.join(OUT, "xcop_rnei_nsig.txt")
-    if os.path.exists(path):
-        for ln in open(path):
-            if ln.lower().startswith("median"):        # 'median_nsigma <value>' line
-                return float(ln.split()[-1])
-    return 0.918
+_xc = refs["X-COP"]        # s and r_nei fitted jointly per cluster
+# X-COP: s and r_nei fitted jointly per cluster (xcop_s_rnei_joint.py); s and n_sigma are the
+# medians over the 12 clusters (s from make_reference_systems.py, n_sigma from the joint fit).
+_xc_s, _xc_slo, _xc_shi = float(_xc["s"]), float(_xc["s_lo"]), float(_xc["s_hi"])
+_xc_nsig = float(np.median([float(r["n_sigma_C"]) for r in
+                            csv.DictReader(open(os.path.join(OUT, "xcop_s_rnei_grid.csv")))
+                            if r["cluster"] != "MEDIAN"]))
 
-# X-COP = Model C: s AND r_nei fitted jointly per cluster (the ONE 2-parameter system in the table).
-# s and reduced chi2 are the medians over the 12 clusters from the joint (s,r_nei) fit
-# (scripts_replicable/xcop_s_rnei_joint.py; see memory theory_eps_hmg_models.md sec.4).
-_xc_s, _xc_slo, _xc_shi = float(_xc["s"]), float(_xc["s_lo"]), float(_xc["s_hi"])   # 0.95 [0.70,1.51]
-_xc_nsig = 0.858    # Model C median sqrt(chi2nu) -> chi2nu = 0.74 (reproduced by xcop_s_rnei_joint.py)
+_ud_path = os.path.join(OUT, "udg_systems.csv")
+if not os.path.exists(_ud_path):
+    import subprocess, sys
+    subprocess.run([sys.executable, os.path.join(HERE, "fit_external_udg.py")], check=True)
+_ud = {r["sample"]: {k: float(v) for k, v in r.items() if k != "sample"}
+       for r in csv.DictReader(open(_ud_path))}
+
+
+def _sdisp(row, d):
+    f = f"{{:.{d}f}}"
+    return (f"${f.format(row['s'])}^{{+{f.format(row['s_hi'] - row['s'])}}}"
+            f"_{{-{f.format(row['s'] - row['s_lo'])}}}$")
+
 
 SYSTEMS = [
     # --- external systems (baryonic masses from the cited works) ---
-    # UDG global HMG fit (fit_hmg_udg.py) prefers the s<1 branch: s=0.0098 (chi2=8.6)
-    # over the s->inf asymptotic branch (chi2=17.1); s interval from Delta chi2=1.
-    ref_row(r"Gas-rich UDGs",       1.6e9,  9,   0.0098, None, None, "Monjo2026udg",
-            s_disp="$0.010^{+0.008}_{-0.010}$", nsig_fn=nsig_udg),
-    # MIGHTEE Ponomareva+2021: 6 gas-rich UDGs with one V_out each at R_HI/2.
-    # Displayed s is per-galaxy median (individual bisection); chi2_nu is from the joint fit
-    # at s_best=0.0098 (velocity space, nu=5). s_lo/s_hi=None -> xi2 shown without interval.
-    ref_row(r"MIGHTEE gas-rich UDGs", 5.8e9, 19, 0.19, None, None, "Ponomareva2021",
-            s_disp=r"$0.19^{+0.09}_{-0.10}$",
-            nsig_fn=lambda s: math.sqrt(_MIGHTEE_CHI2NU)),
+    # Gas-rich UDGs and MIGHTEE UDGs: fit_external_udg.py (s, interval and n_sigma at that s).
+    ref_row(r"Gas-rich UDGs", _ud["Gas-rich UDGs"]["m_bar"], _ud["Gas-rich UDGs"]["r_sys_kpc"],
+            _ud["Gas-rich UDGs"]["s"], None, None, "Monjo2026udg",
+            s_disp=_sdisp(_ud["Gas-rich UDGs"], 3),
+            nsig_fn=lambda s: _ud["Gas-rich UDGs"]["n_sigma"]),
+    ref_row(r"MIGHTEE gas-rich UDGs", _ud["MIGHTEE gas-rich UDGs"]["m_bar"],
+            _ud["MIGHTEE gas-rich UDGs"]["r_sys_kpc"], _ud["MIGHTEE gas-rich UDGs"]["s"], None, None,
+            "Ponomareva2021", s_disp=_sdisp(_ud["MIGHTEE gas-rich UDGs"], 2),
+            nsig_fn=lambda s: _ud["MIGHTEE gas-rich UDGs"]["n_sigma"]),
     ref_row(r"Galaxy--galaxy WL",   1.0e11, 500, float(_gw["s"]), float(_gw["s_lo"]), float(_gw["s_hi"]),
             "Monjo2025", nsig_fn=nsig_ggwl),  # Mistele, no-z; s from reference_systems.csv
     # SPARC: distributional medians of the 50 galaxies (matches Fig. A.2): r_eq~284 kpc
@@ -355,8 +343,8 @@ SYSTEMS = [
     kids_row("Bin 2",               r"RAR KiDS bin 2",           500, None),
     kids_row("Bin 3",               r"RAR KiDS bin 3",           500, None),
     kids_row("Bin 4",               r"RAR KiDS bin 4",           500, None),
-    kids_row("Late-type (n<2.5)",   r"RAR KiDS late ($n<2.5$)",  500, None),
-    kids_row("Early-type (n>=2.5)", r"RAR KiDS early ($n\geq2.5$)", 500, None),
+    kids_row("Late-type (n<2)",   r"RAR KiDS late ($n<2$)",  500, None),
+    kids_row("Early-type (n>=2)", r"RAR KiDS early ($n\geq2$)", 500, None),
     kids_row("Blue (u-r)",          r"RAR KiDS blue ($u-r$)",    500, None),
     kids_row("Red (u-r)",           r"RAR KiDS red ($u-r$)",     500, None),
 ]

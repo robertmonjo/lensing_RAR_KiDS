@@ -77,25 +77,7 @@ def chi2_all(s):
     return float(tot) / (n - 1)          # chi2_nu = chi2/(N-k), k=1 (fitted s)
 
 # ── Morphology-specific r(g_bar) from MICE (breaks deep-limit s<->1/s symmetry) ─
-import re as _re
-def _load_morph_r(key):
-    blocks = {}; cur = None
-    with open(os.path.join(DATA_DIR, "morph_gbar_r_mice.txt")) as _fh:
-        for ln in _fh:
-            m = _re.match(r"### (\w+)", ln)
-            if m:
-                cur = m.group(1); blocks[cur] = []; continue
-            if cur and ln[:1].isdigit():
-                a = ln.split()
-                if len(a) == 2:
-                    blocks[cur].append((float(a[0]), float(a[1])))
-    arr = np.array(blocks[key]); r = arr[:, 0] * MPC_TO_KPC; lgb = arr[:, 1]
-    o = np.argsort(lgb)
-    return lambda gbar_si: np.interp(np.log10(gbar_si), lgb[o], r[o])
-
-_MKEY = {"late": "LATE_sersic", "early": "EARLY_sersic",
-         "blue": "BLUE_color", "red": "RED_color"}
-_r_of = {k: _load_morph_r(v) for k, v in _MKEY.items()}
+_r_of = _hm.morph_r_maps()
 
 def chi2_morph(s, gbar, gobs, gerr, key):
     # Full xi_s^2 = 1/s^3 + v_H^2/(12 v_N^2), r per point from the MICE morphology
@@ -185,7 +167,7 @@ print("Done.")
 import fit_hmg_udg as _F_udg
 _c_udg_nu = len(_F_udg.DATA) - 1   # N - k = 6 - 1 = 5
 _c_udg = np.array([_F_udg.chi2_hmg(float(s)) for s in s_arr]) / _c_udg_nu
-print(f"UDG chi2_nu at s=0.0098: {_F_udg.chi2_hmg(0.0098)/_c_udg_nu:.3f}")
+print(f"UDG chi2_nu minimum: {_c_udg.min():.3f} at s = {s_arr[np.argmin(_c_udg)]:.4f}")
 
 # ── s_equal functions ─────────────────────────────────────────────────────────
 def Cseq(M):
@@ -215,12 +197,13 @@ bins_s = [
     {'label': r'Bin 4 ($8.9\!\times\!10^{10}\,M_\odot$)', 'M': 8.9e10, 'lc': '#c0392b'},
 ]
 
+_MM = _hm.morph_mstar()   # mass-matched MICE subsets
 extra = [
     {'label': 'Global',                  'M': M_APPROX, 'mk': 'D', 'mc': '#222222', 'ms': 9},
-    {'label': r'Late ($n\!<\!2.5$)',     'M': 9.5e9,    'mk': '^', 'mc': '#2ecc71', 'ms': 11},
-    {'label': r'Early ($n\!\geq\!2.5$)', 'M': 2.0e10,   'mk': 's', 'mc': '#8e44ad', 'ms': 8},
-    {'label': r'Blue ($u\!-\!r$)',       'M': 7.8e9,    'mk': 'o', 'mc': '#2980b9', 'ms': 7},
-    {'label': r'Red ($u\!-\!r$)',        'M': 1.2e10,   'mk': 'o', 'mc': '#e91e63', 'ms': 7},
+    {'label': r'Late ($n\!<\!2$)',     'M': _MM['late'],  'mk': '^', 'mc': '#2ecc71', 'ms': 11},
+    {'label': r'Early ($n\!\geq\!2$)', 'M': _MM['early'], 'mk': 's', 'mc': '#8e44ad', 'ms': 8},
+    {'label': r'Blue ($u\!-\!r$)',       'M': _MM['blue'],  'mk': 'o', 'mc': '#2980b9', 'ms': 7},
+    {'label': r'Red ($u\!-\!r$)',        'M': _MM['red'],   'mk': 'o', 'mc': '#e91e63', 'ms': 7},
 ]
 
 stroke_eff = [pe.withStroke(linewidth=3.5, foreground='white')]
@@ -505,171 +488,137 @@ for _uid, _lmb, _rk_u, _vo, _vn, _slm, _svp, _svm in _UDGS_CLA:
         ax1.errorbar(_req_u, _sf_u, xerr=_xerr_u, yerr=_yerr_u, fmt='*', color=_C_UDG, ms=6.0,
                      mec=_C_UDGE, mew=0.7, ecolor=_C_UDGE, elinewidth=0.9,
                      capsize=2.5, zorder=9)
-# Global-fit star (6 UDGs; joint HMG s<1 best fit s=0.0098, mean r_eq=0.112 Mpc)
-_s_med_udg = 0.0098
-_med_xerr = [[0.1117 * 0.109], [0.1117 * 0.122]]
-_med_yerr = [[_s_med_udg - 0.002], [0.023 - _s_med_udg]]
+# Joint-fit star of the six gas-rich UDGs and per-galaxy MIGHTEE UDGs (fit_external_udg.py).
+import csv as _csv_udg
+_udg_csv = os.path.join(os.path.dirname(os.path.abspath(__file__)), "outputs", "udg_systems.csv")
+_mig_csv = os.path.join(os.path.dirname(os.path.abspath(__file__)), "outputs", "mightee_per_galaxy.csv")
+if not (os.path.exists(_udg_csv) and os.path.exists(_mig_csv)):
+    import subprocess, sys
+    subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                 "fit_external_udg.py")], check=True)
+_udg_sys = {r["sample"]: {k: float(v) for k, v in r.items() if k != "sample"}
+            for r in _csv_udg.DictReader(open(_udg_csv))}
+_ug = _udg_sys["Gas-rich UDGs"]
+_s_med_udg, _req_med_udg = _ug["s"], _ug["r_eq"]
+_med_xerr = [[_req_med_udg - _ug["r_eq_lo"]], [_ug["r_eq_hi"] - _req_med_udg]]
+_med_yerr = [[_s_med_udg - max(_ug["s_lo"], s_min_ax)], [_ug["s_hi"] - _s_med_udg]]
 _s_med_show = max(_s_med_udg, _udg_floor)
-ax1.errorbar(0.1117, _s_med_show,
+ax1.errorbar(_req_med_udg, _s_med_show,
              xerr=_med_xerr,
              yerr=None if _s_med_udg < s_min_ax else _med_yerr,
              fmt='*', color=_C_UDG, ms=14, mec=_C_UDGE,
              mew=1.4, ecolor=_C_UDGE, elinewidth=1.2, capsize=3, zorder=10, label='_nolegend_')
 if _s_med_udg < s_min_ax:
-    ax1.annotate('', xy=(0.1117, s_min_ax*1.04), xytext=(0.1117, _s_med_show*0.82),
+    ax1.annotate('', xy=(_req_med_udg, s_min_ax*1.04), xytext=(_req_med_udg, _s_med_show*0.82),
                  arrowprops=dict(arrowstyle='-|>', color=_C_UDGE, lw=1.3), zorder=10)
-# Asymptotic s>1 branch (published UDG paper): alternative solution → open star, arrow up.
-# Star at 40% of s_max to leave enough room for a clearly visible arrow up to 92%.
+# Asymptotic s>1 branch of the gas-rich UDGs: alternative solution, open star with arrow up.
 _udg_y2 = s_max_ax * 0.40
-ax1.annotate('', xy=(0.111, s_max_ax * 0.92), xytext=(0.111, _udg_y2),
+ax1.annotate('', xy=(_req_med_udg, s_max_ax * 0.92), xytext=(_req_med_udg, _udg_y2),
              arrowprops=dict(arrowstyle='-|>', color=_C_UDGE, lw=1.5), zorder=8)
-ax1.plot(0.111, _udg_y2, marker='*', mfc='none', mec=_C_UDGE, mew=1.0, ms=12, ls='', zorder=8,
+ax1.plot(_req_med_udg, _udg_y2, marker='*', mfc='none', mec=_C_UDGE, mew=1.0, ms=12, ls='', zorder=8,
          path_effects=[pe.withStroke(linewidth=2.6, foreground='white')])
 
-# MIGHTEE UDGs (Ponomareva 2021): 4 gas-rich UDGs with HMG kinematics, s<1 fits.
-# r_eq [Mpc] and s values pre-computed; yerr from ±40% RHI variation, no xerr.
-_MIG = [
-    (0.1781, 0.1269, 0.1193, 0.1305, '#6BAED6'),  # J021759 marginal (face-on)
-    (0.2484, 0.0458, 0.0333, 0.0511, '#B2182B'),  # J022350 outlier
-    (0.1575, 0.2536, 0.2487, 0.2559, '#2166AC'),  # J022429 on
-    (0.1635, 0.2950, 0.2908, 0.2971, '#2166AC'),  # J022522 on
-]
-# r_eq ∝ M_HI^(1/3): ±40% M_HI → r_eq uncertainty fractions
-_RHI_LO = 1.0 - 0.60**(1.0/3.0)   # ≈ 0.157
-_RHI_HI = 1.40**(1.0/3.0) - 1.0   # ≈ 0.119
+# MIGHTEE UDGs (Ponomareva et al. 2021): s per galaxy, range from r_sys scaled by 0.6 and 1.4;
+# r_eq range from the same +/-40 per cent variation (r_eq scales as M^(1/3)).
+_MIG = [r for r in _csv_udg.DictReader(open(_mig_csv))]
+_RHI_LO = 1.0 - 0.60**(1.0/3.0)
+_RHI_HI = 1.40**(1.0/3.0) - 1.0
 _mig_fc, _mig_ec = _COL_MIG
-for _mreq, _ms0, _msl, _msh, _mc in _MIG:
-    _myerr = [[max(_ms0 - _msl, 0)], [max(_msh - _ms0, 0)]]
+for _r in _MIG:
+    _mreq, _ms0, _msl, _msh = (float(_r[k]) for k in ("r_eq", "s", "s_lo", "s_hi"))
     _mxerr = [[_mreq * _RHI_LO], [_mreq * _RHI_HI]]
-    ax1.errorbar(_mreq, _ms0, xerr=_mxerr, yerr=_myerr, fmt='*', color=_mig_fc, ms=6.0,
-                 mec=_mig_ec, mew=0.8, ecolor=_mig_ec, elinewidth=1.1,
-                 capsize=2.5, zorder=9, label='_nolegend_')
-# Median MIGHTEE star (4 galaxies): r_eq=0.1708 Mpc, s=0.1903
-_mig_med_xerr = [[0.1708 - 0.1575], [0.2484 - 0.1708]]
-_mig_med_yerr = [[0.1903 - 0.0458], [0.2950 - 0.1903]]
-ax1.errorbar(0.1708, 0.1903, xerr=_mig_med_xerr, yerr=_mig_med_yerr, fmt='*',
-             color=_mig_fc, ms=14, mec=_mig_ec, mew=1.4,
-             ecolor=_mig_ec, elinewidth=1.1, capsize=3, zorder=10, label='_nolegend_')
-
-# MIGHTEE s>1 mirror branch: open stars at s_mirror = 1/s_best
-_MIG_MIR = [
-    (0.1781, 0.1269, 0.1193, 0.1305, '#6BAED6'),  # J021759
-    (0.2484, 0.0458, 0.0333, 0.0511, '#B2182B'),  # J022350
-    (0.1575, 0.2536, 0.2487, 0.2559, '#2166AC'),  # J022429
-    (0.1635, 0.2950, 0.2908, 0.2971, '#2166AC'),  # J022522
-]
-for _mreq, _ms0, _msl, _msh, _mc in _MIG_MIR:
-    _sm = 1.0/_ms0
-    _ye_m = [[max(_sm - 1.0/_msh, 0)], [max(1.0/_msl - _sm, 0)]]
-    _mxerr_m = [[_mreq * _RHI_LO], [_mreq * _RHI_HI]]
-    ax1.errorbar(_mreq, _sm, xerr=_mxerr_m, yerr=_ye_m, fmt='*', mfc='none', mec=_mig_ec, mew=0.8,
-                 ms=6.0, ecolor=_mig_ec, elinewidth=1.0, capsize=2.5, zorder=8, label='_nolegend_')
-# Median mirror star (s_med_mir = 1/0.1903 ≈ 5.26)
-_sm_med = 1.0/0.1903
-ax1.errorbar(0.1708, _sm_med, xerr=[[0.1708-0.1575],[0.2484-0.1708]],
-             yerr=[[_sm_med-1.0/0.2950],[1.0/0.0458-_sm_med]], fmt='*',
+    ax1.errorbar(_mreq, _ms0, xerr=_mxerr, yerr=[[max(_ms0 - _msl, 0)], [max(_msh - _ms0, 0)]],
+                 fmt='*', color=_mig_fc, ms=6.0, mec=_mig_ec, mew=0.8, ecolor=_mig_ec,
+                 elinewidth=1.1, capsize=2.5, zorder=9, label='_nolegend_')
+    _sm = 1.0 / _ms0                                   # mirror branch, open star
+    ax1.errorbar(_mreq, _sm, xerr=_mxerr, yerr=[[max(_sm - 1.0/_msh, 0)], [max(1.0/_msl - _sm, 0)]],
+                 fmt='*', mfc='none', mec=_mig_ec, mew=0.8, ms=6.0, ecolor=_mig_ec,
+                 elinewidth=1.0, capsize=2.5, zorder=8, label='_nolegend_')
+_um = _udg_sys["MIGHTEE gas-rich UDGs"]
+_mx = [[_um["r_eq"] - _um["r_eq_lo"]], [_um["r_eq_hi"] - _um["r_eq"]]]
+ax1.errorbar(_um["r_eq"], _um["s"], xerr=_mx, yerr=[[_um["s"] - _um["s_lo"]], [_um["s_hi"] - _um["s"]]],
+             fmt='*', color=_mig_fc, ms=14, mec=_mig_ec, mew=1.4, ecolor=_mig_ec,
+             elinewidth=1.1, capsize=3, zorder=10, label='_nolegend_')
+_sm_med = 1.0 / _um["s"]
+ax1.errorbar(_um["r_eq"], _sm_med, xerr=_mx,
+             yerr=[[_sm_med - 1.0/_um["s_hi"]], [1.0/_um["s_lo"] - _sm_med]], fmt='*',
              mfc='none', mec=_mig_ec, mew=1.4, ms=14, ecolor=_mig_ec,
              elinewidth=1.1, capsize=3, zorder=8, label='_nolegend_')
 
-# ── X-ray galaxy groups (Gastaldello et al. 2007) ─────────────────────────────
-# 16 X-ray groups (T~1-3 keV), Chandra/XMM; one RAR point per group at r_Δ.
-# Branch degeneracy (Hubble term << neighbourhood at group scale): BOTH branches filled.
-# Columns: (r_kpc, Mtot_1e13, sMtot, Mgas_1e12, sMgas, Mstar_1e10, sMstar)
-_GRPS = [
-    (295, 1.85, 0.04,  1.21, 0.02,  0.0,   0.0),   # NGC 5044
-    (215, 1.42, 0.03,  1.02, 0.02,  11.2,  4.1),   # NGC 1550
-    (185, 0.92, 0.08,  0.31, 0.03,  0.0,   0.0),   # NGC 2563   (railed)
-    (292, 3.59, 0.14,  2.60, 0.08,  22.1,  4.5),   # Abell 262  (railed)
-    (262, 1.30, 0.04,  0.87, 0.02,  22.4,  2.2),   # NGC 533
-    (353, 3.21, 0.10,  2.84, 0.06,  61.8,  7.2),   # MKW 4
-    (319, 2.36, 0.13,  1.56, 0.05,  26.4,  6.3),   # IC 1860
-    (226, 0.84, 0.07,  0.58, 0.06,  2.8,   6.7),   # NGC 5129
-    (208, 1.32, 0.16,  0.66, 0.03,  0.0,   0.0),   # NGC 4325   (railed)
-    (422, 5.51, 0.51,  3.35, 0.18,  0.0,   0.0),   # ESO 5520200 (railed)
-    (465, 7.38, 0.61,  4.79, 0.29,  22.5,  24.7),  # AWM 4      (railed)
-    (343, 5.97, 1.14,  3.45, 0.17,  0.0,   0.0),   # ESO 3060170 (railed)
-    (397, 1.85, 0.07,  2.85, 0.11,  0.0,   0.0),   # RGH 80
-    (405, 4.92, 1.64,  1.97, 0.19,  0.0,   0.0),   # MS 0116    (railed)
-    (710, 10.68, 0.51, 11.36, 0.29,  0.0,   0.0),  # Abell 2717
-    (584, 6.13, 3.30,  5.10, 0.41,  56.9,  10.5),  # RXJ 1159
-]
-_grp_pts = []  # list of dicts with nominal + 1σ uncertainty per group
-for _rk, _mt, _smt, _mg, _smg, _ms, _sms in _GRPS:
-    _mb     = _mg*1e12 + _ms*1e10
-    _smb    = math.sqrt((_smg*1e12)**2 + (_sms*1e10)**2)
-    _mt_sun = _mt*1e13;  _smt_sun = _smt*1e13
-    _gb  = G_CODE*_mb    / _rk**2 * CODE_TO_SI
-    _go  = G_CODE*_mt_sun/ _rk**2 * CODE_TO_SI
-    _sgb = G_CODE*_smb   / _rk**2 * CODE_TO_SI
-    _sgo = G_CODE*_smt_sun/_rk**2 * CODE_TO_SI
-    _req = (G_CODE*_mb*T0**2)**(1.0/3.0) / 1000.0
-    _sreq = _req * (1.0/3.0) * _smb / max(_mb, 1e-60)   # σ_r_eq from σ_M_b
-    if _go <= _gb:
-        continue
-    _gs_need = (_go**2 - _gb**2)/_gb
-    _fitted = _gs_need < _GS_MAX_SI
-    _sf = None
-    if _fitted:
-        _sf = _bisect_s_grp(_gb, _go, _rk)
-        if _sf is None:
-            continue
-        # 1σ propagation (fitted groups only):
-        #   s_lo: g_bar+σ, g_obs−σ → more g_bar, less g_obs → less g_s needed → smaller s
-        #   s_hi: g_bar−σ, g_obs+σ → less g_bar, more g_obs → more g_s needed → larger s
-        _go_lo = max(_go - _sgo, max(_gb + _sgb, 1e-60) * 1.001)
-        _sf_slo = _bisect_s_grp(_gb + _sgb, _go_lo, _rk)        # smaller s bound
-        _sf_shi = _bisect_s_grp(max(_gb - _sgb, 1e-60), _go + _sgo, _rk)  # larger s bound
-        _slo_yerr = (max(_sf - (_sf_slo if _sf_slo else s_min_ax), 0),
-                     max((_sf_shi if _sf_shi else _sf) - _sf, 0))
-        _shi_yerr = (max(1.0/_sf - (1.0/_sf_shi if _sf_shi else 1.0/_sf), 0),
-                     max((1.0/_sf_slo if _sf_slo else s_max_ax) - 1.0/_sf, 0))
-    else:
-        # Railated: find min nσ at (g_bar+nσ, g_obs−nσ) that becomes reachable.
-        # _sf is the edge s; the interval [_sf, 1/_sf] spans both branches.
-        # No additional error bars — the edge itself IS the uncertainty bound.
-        for _nsig in (1.0, 1.5, 2.0):
-            _gb_e = _gb + _nsig*_sgb;  _go_e = _go - _nsig*_sgo
-            if _go_e <= _gb_e: continue
-            if (_go_e**2 - _gb_e**2)/_gb_e < _GS_MAX_SI:
-                _sf = _bisect_s_grp(_gb_e, _go_e, _rk)
-                if _sf is not None:
-                    break
-        if _sf is None:
-            continue
-        _slo_yerr = (0, 0)
-        _shi_yerr = (0, 0)
-    _grp_pts.append({'req': _req, 'slo': _sf, 'shi': 1.0/_sf,
-                     'xerr': _sreq,
-                     'slo_yerr': _slo_yerr,
-                     'shi_yerr': _shi_yerr})
+# ── X-ray galaxy groups (Gastaldello et al. 2007) — chi²_ν fitted s ──────────
+# Per-group s_best and 68% CI come from fit_gastaldello_s.py (15-point NFW fit,
+# σ=0.10 dex intrinsic scatter). r_eq computed from M_bar = M_gas + M_star.
+# Filled star = s_best branch; open star = 1/s_best mirror.
+import pandas as _pd_xrg
+_gfit_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           "outputs", "gastaldello_s_fit.csv")
+if not os.path.exists(_gfit_path):
+    import subprocess, sys
+    subprocess.run([sys.executable,
+                    os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                 "fit_gastaldello_s.py")], check=True)
+_gdat_path = os.path.join(DATA_DIR, "gastaldello2007.csv")
+_gfit_df = _pd_xrg.read_csv(_gfit_path, comment='#', encoding='latin-1',
+    names=['name','Delta','r_s_kpc','c','r_Delta_kpc','M_Delta_1e13','M_gas_1e13',
+           'M_star_1e11','s_best','s_lo','s_hi','chi2_nu_fix','chi2_nu_obs',
+           'chi2_nu_s1','n_sigma_s1','N_pts','f_bar'])
+_gdat_df = _pd_xrg.read_csv(_gdat_path, comment='#')
 
-_grp_lo  = [p['slo'] for p in _grp_pts]
-_grp_hi  = [p['shi'] for p in _grp_pts]
-_grp_req = [p['req'] for p in _grp_pts]
-print(f"X-ray groups: {len(_grp_pts)} points, s<1 range [{min(_grp_lo):.3f},{max(_grp_lo):.3f}], "
+_grp_pts = []
+for _, _fr in _gfit_df.iterrows():
+    _dr = _gdat_df[_gdat_df['name'] == _fr['name']]
+    if _dr.empty:
+        continue
+    _dr = _dr.iloc[0]
+    _mg  = float(_fr['M_gas_1e13']) * 1e13
+    _mst = float(_fr['M_star_1e11'])
+    _ms  = _mst * 1e11 if not math.isnan(_mst) else 0.0
+    _mb  = _mg + _ms
+    _smg = float(_dr['M_gas_err']) * 1e13
+    _sme = float(_dr['M_star_err']) if not math.isnan(float(_dr['M_star_err'])) else 0.0
+    _sms = _sme * 1e11
+    _smb = math.sqrt(_smg**2 + _sms**2)
+    _req  = (G_CODE * _mb * T0**2)**(1.0/3.0) / 1000.0
+    _sreq = _req * (1.0/3.0) * _smb / max(_mb, 1e-60)
+    _sbest = float(_fr['s_best'])
+    _slo   = float(_fr['s_lo'])
+    _shi   = float(_fr['s_hi'])
+    _grp_pts.append({'req': _req, 'xerr': _sreq,
+                     'sbest': _sbest, 'slo': _slo, 'shi': _shi})
+
+_grp_sbest = [p['sbest'] for p in _grp_pts]
+_grp_req   = [p['req']   for p in _grp_pts]
+print(f"X-ray groups: {len(_grp_pts)} points, s range [{min(_grp_sbest):.3f},{max(_grp_sbest):.3f}], "
       f"r_eq range [{min(_grp_req):.3f},{max(_grp_req):.3f}] Mpc")
 if _grp_pts:
     _xrg_fc = _COL_XRG[0];  _xrg_ec = _COL_XRG[1]
     for _p in _grp_pts:
-        _xe = _p['xerr']
-        ax1.errorbar(_p['req'], _p['slo'],
-                     xerr=_xe, yerr=[[_p['slo_yerr'][0]], [_p['slo_yerr'][1]]],
+        _sb, _sl, _sh = _p['sbest'], _p['slo'], _p['shi']
+        _sm = 1.0 / _sb
+        # filled = fitted branch (s_best); open = 1/s_best mirror
+        ax1.errorbar(_p['req'], _sb,
+                     xerr=_p['xerr'], yerr=[[_sb - _sl], [_sh - _sb]],
                      fmt='*', color=_xrg_fc, ms=4.5, mec=_xrg_ec, mew=0.6,
                      ecolor=_xrg_ec, elinewidth=0.9, capsize=2.2, alpha=0.80, zorder=6)
-        ax1.errorbar(_p['req'], _p['shi'],
-                     xerr=_xe, yerr=[[_p['shi_yerr'][0]], [_p['shi_yerr'][1]]],
-                     fmt='*', color=_xrg_fc, ms=4.5, mec=_xrg_ec, mew=0.6,
+        ax1.errorbar(_p['req'], _sm,
+                     xerr=_p['xerr'],
+                     yerr=[[max(_sm - 1.0/_sh, 0)], [max(1.0/_sl - _sm, 0)]],
+                     fmt='*', mfc='none', mec=_xrg_ec, mew=0.6, ms=4.5,
                      ecolor=_xrg_ec, elinewidth=0.9, capsize=2.2, alpha=0.80, zorder=6)
-    _med_lo  = float(np.median(_grp_lo));  _med_hi = float(np.median(_grp_hi))
-    _med_req = float(np.median(_grp_req))
-    _xe = [[_med_req - min(_grp_req)], [max(_grp_req) - _med_req]]
-    ax1.errorbar(_med_req, _med_lo, xerr=_xe,
-                 yerr=[[_med_lo - min(_grp_lo)], [max(_grp_lo) - _med_lo]],
+    # Median representative star (large): spread = full range across groups
+    _med_sbest = float(np.median(_grp_sbest))
+    _med_req   = float(np.median(_grp_req))
+    _xe_med = [[_med_req - min(_grp_req)], [max(_grp_req) - _med_req]]
+    _med_sm = 1.0 / _med_sbest
+    ax1.errorbar(_med_req, _med_sbest, xerr=_xe_med,
+                 yerr=[[_med_sbest - min(p['slo'] for p in _grp_pts)],
+                       [max(p['shi'] for p in _grp_pts) - _med_sbest]],
                  fmt='*', color=_xrg_fc, ms=14, mec=_xrg_ec, mew=1.4,
                  ecolor=_xrg_ec, elinewidth=1.1, capsize=3, zorder=9)
-    ax1.errorbar(_med_req, _med_hi, xerr=_xe,
-                 yerr=[[_med_hi - min(_grp_hi)], [max(_grp_hi) - _med_hi]],
-                 fmt='*', color=_xrg_fc, ms=14, mec=_xrg_ec, mew=1.4,
+    ax1.errorbar(_med_req, _med_sm, xerr=_xe_med,
+                 yerr=[[max(_med_sm - min(1.0/p['shi'] for p in _grp_pts), 0)],
+                       [max(1.0/p['slo'] for p in _grp_pts) - _med_sm]],
+                 fmt='*', mfc='none', mec=_xrg_ec, mew=1.4, ms=14,
                  ecolor=_xrg_ec, elinewidth=1.1, capsize=3, zorder=9)
 
 # ── Background shading: three candidate schemes (SHADE_MODE) ───────────────────
@@ -755,7 +704,7 @@ elif SHADE_MODE == 'multifield':          # union (max) of 3 g_s fields: equal b
                           shading='gouraud', vmin=0.0, vmax=_GS_MAX)
     ax1.text(0.55, 0.82, 'Hubble-dominated', transform=ax1.transAxes, color='#555',
              fontsize=8.2, ha='center', va='center', fontstyle='italic', zorder=4, rotation=30)
-    ax1.text(1.2, 0.08, 'neighbourhood-dominated', color='#555',
+    ax1.text(1.2, 0.08, 'vicinity-dominated', color='#555',
              fontsize=8.2, ha='center', va='center', fontstyle='italic', zorder=4)
 
 # axhline(s=1) and axvline(R_CROSS) removed — no finite crossing with s_sym formula
@@ -818,7 +767,7 @@ ax1.set_yscale('log')
 ax1.set_xlim(0.0, r_max_ax)
 ax1.set_ylim(s_min_ax, s_max_ax)
 ax1.set_xlabel(r'dynamical radius $r_\mathrm{eq}\;[\mathrm{Mpc}]$')
-ax1.set_ylabel(r'neighbourhood parameter $s$')
+ax1.set_ylabel(r'vicinity parameter $s$')
 
 xt = [0, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0]
 ax1.set_xticks(xt)
@@ -859,8 +808,8 @@ _l2 = [
     _mk('D', '#222222', 'white', 'Global'),
     # Column 2: RAR KiDS morfo
     Line2D([], [], color='none', label=r'$\mathbf{RAR\ KiDS\ morfo.}$'),
-    _mk('^', '#2ecc71', 'white', r'Late ($n\!<\!2.5$)'),
-    _mk('s', '#8e44ad', 'white', r'Early ($n\!\geq\!2.5$)'),
+    _mk('^', '#2ecc71', 'white', r'Late ($n\!<\!2$)'),
+    _mk('s', '#8e44ad', 'white', r'Early ($n\!\geq\!2$)'),
     _mk('o', '#2980b9', 'white', r'Blue ($u\!-\!r$)'),
     _mk('o', '#e91e63', 'white', r'Red ($u\!-\!r$)'),
     # Column 3: clusters + gal-gal WL
@@ -910,9 +859,9 @@ for i, (col, lbl) in enumerate(zip(bin_colors, bin_labels_short)):
 ax2.loglog(c_all,   s_arr, color='#222222', lw=2.4,
            label='Global (all bins)', zorder=5)
 ax2.loglog(c_late,  s_arr, color='#2ecc71', lw=2.2,
-           label=r'Late ($n<2.5$)', zorder=5)
+           label=r'Late ($n<2$)', zorder=5)
 ax2.loglog(c_early, s_arr, color='#8e44ad', lw=2.2,
-           label=r'Early ($n\geq2.5$)', zorder=5)
+           label=r'Early ($n\geq2$)', zorder=5)
 ax2.loglog(c_blue,  s_arr, color='#2980b9', lw=1.8, ls=':',
            label=r'Blue ($u-r$)', zorder=4)
 ax2.loglog(c_red,   s_arr, color='#c0392b', lw=1.8, ls=':',
@@ -920,7 +869,7 @@ ax2.loglog(c_red,   s_arr, color='#c0392b', lw=1.8, ls=':',
 ax2.loglog(_c_udg, s_arr, color='0.45', lw=3.5, alpha=0.14, ls='-',
            label=r'UDGs (6, $s\!<\!1$)', zorder=3)
 # NOTE: the per-cluster chi2_nu(s) haze (both HIFLUGCS and X-COP) is NOT drawn.
-# For X-COP a single scalar s is not the right model (hydrostatic profiles -- see xcop_rnei_nsig.py);
+# For X-COP s is fitted jointly with r_nei (xcop_s_rnei_joint.py);
 # for HIFLUGCS the reduced-chi2 haze added no information and cluttered the panel.
 
 # Mark both minima (small dots); fill the preferred (lower-chi2) one, other open.
@@ -1001,7 +950,7 @@ for el in ELEMENTS:
 
 # UDG cross-panel dashed line at s_udg_min
 _con_udg = ConnectionPatch(
-    xyA=(0.1117, _s_udg_min), coordsA=ax1.transData,
+    xyA=(_req_med_udg, _s_udg_min), coordsA=ax1.transData,
     xyB=(_chi2_udg_min, _s_udg_min), coordsB=ax2.transData,
     color='0.55', ls='--', lw=0.9, alpha=0.70, zorder=1)
 fig.add_artist(_con_udg)

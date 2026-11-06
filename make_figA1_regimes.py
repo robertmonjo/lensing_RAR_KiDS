@@ -125,14 +125,14 @@ ax1.annotate(
 # Regime labels in axes-fraction coordinates:
 #   NH: axes (0.10, 0.32) → data (s≈0.38, xi2≈0.46) — in red zone, well below hub
 #   HUB: axes (0.80, 0.45) → data (s≈1.75, xi2≈1.58) — in blue zone, below legend area
-ax1.text(0.19, 0.32, 'neighbourhood-\ndominated',
+ax1.text(0.19, 0.32, 'vicinity-\ndominated',
          transform=ax1.transAxes, color=C_NB, fontsize=7.5,
          va='center', ha='center', fontstyle='italic')
 ax1.text(0.80, 0.45, 'Hubble-\ndominated',
          transform=ax1.transAxes, color=C_HUB, fontsize=7.5,
          va='center', ha='center', fontstyle='italic')
 
-ax1.set_xlabel(r'neighbourhood parameter $s$')
+ax1.set_xlabel(r'vicinity parameter $s$')
 ax1.set_ylabel(r'$\xi_s^2$ components')
 ax1.set_xlim(0.28, 3.8)
 ax1.set_ylim(0.05, 50)

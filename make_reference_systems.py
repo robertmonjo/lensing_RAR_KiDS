@@ -14,8 +14,8 @@ so the reported s are directly comparable.  Error bars are the SAMPLE DISPERSION
   * gal-gal WL: Mistele (2024) stacked circular velocities (4 mass bins x 5 radii).
   * Milky Way : published radial + vertical two-branch fit.
 
-For EVERY system both s<->1/s solution branches are FITTED independently (never s_mirror = 1/s)
-and a `degenerate` flag records whether the data can statistically separate them -- a
+For SPARC, HIFLUGCS and gal-gal WL both s<->1/s solution branches are FITTED independently;
+for X-COP (s fitted jointly with r_nei, xcop_s_rnei_joint.py) the open star is 1/s. A `degenerate` flag records whether the data can statistically separate them -- a
 likelihood-ratio (Wilks) test on the TOTAL Delta chi2 between branches (see the DELTA_DEG block
 below).  make_figA2_landscape.py fills both stars when degenerate, else opens the disfavoured one.
 
@@ -150,17 +150,26 @@ for nm, pts in xc.items():
     xcop_sf.append(s_lo); xcop_so.append(s_hi); xcop_req.append(r_newton_kpc(Mbar)/1000.0)
     _xc_clo += c_lo; _xc_chi += c_hi
 xcop_sf = np.array(xcop_sf); xcop_so = np.array(xcop_so); xcop_req = np.array(xcop_req)
+# X-COP per-cluster s: joint fit of s and r_nei (xcop_s_rnei_joint.py, model C).
+_xj_path = os.path.join(OUT, "xcop_s_rnei_grid.csv")
+if not os.path.exists(_xj_path):
+    import subprocess, sys
+    subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                 "xcop_s_rnei_joint.py")], check=True)
+_xj = {r["cluster"]: float(r["s_best"]) for r in csv.DictReader(open(_xj_path)) if r["s_best"]}
+_xreq = {nm: xcop_req[i] for i, nm in enumerate(xc.keys())}
+xcop_sj = np.array([_xj[nm] for nm in xc.keys()])
 with open(os.path.join(OUT, "xcop_per_cluster.csv"), "w", newline="") as fh:
     ww = csv.writer(fh); ww.writerow(["r_eq", "s_fill", "s_open"])
-    for i in range(len(xcop_req)):                     # both branches fitted per cluster
-        ww.writerow([round(float(xcop_req[i]), 4), round(float(xcop_sf[i]), 3), round(float(xcop_so[i]), 3)])
+    for nm in xc.keys():                               # filled: joint-fit s; open: mirror 1/s
+        ww.writerow([round(float(_xreq[nm]), 4), round(_xj[nm], 3), round(1.0 / _xj[nm], 3)])
 
 def pct(a):
     return float(np.median(a)), float(np.percentile(a, 16)), float(np.percentile(a, 84))
 
 # ── s <-> 1/s branch degeneracy: which stars are filled in Fig. A.2 ───────────────
 # HMG admits two solution branches per system (a neighbourhood branch s<1 and a Hubble branch
-# s>1).  BOTH are FITTED explicitly here (never assumed s_mirror = 1/s): the s<->1/s symmetry is
+# s>1).  BOTH are FITTED explicitly where a single s is fitted: the s<->1/s symmetry is
 # exact only in the deep limit v_H^2/(12 v_N^2) << 1/s^3, and the Hubble term shifts the mirror
 # away from 1/s (e.g. gal-gal WL: s=2.76 but mirror 0.37, not 1/2.76=0.36).
 #
@@ -212,16 +221,10 @@ print(f"  [HIFLUGCS] s<1 median={_hfm:.2f} [{_hfl:.2f},{_hfh:.2f}]  s>1 mirror m
 # Adopted r_eq = 4.0 (-0.5,+0.8) Mpc (well-fit subset); s from the per-cluster branch medians.
 rows.append(_row("HIFLUGCS", 4.0, 3.5, 4.8, _hfm, _hfl, _hfh, len(hif_sf), _hom, _hol, _hoh,
                  degenerate=abs(_hf_clo - _hf_chi) < DELTA_DEG))
-_xcm, _xcl, _xch = pct(xcop_sf); _xom, _xol, _xoh = pct(xcop_so); _xrm, _xrl, _xrh = pct(xcop_req)
-# X-COP = MODEL C (s AND r_nei jointly fitted; xcop_s_rnei_joint.py). Median s≈0.98 (§7.3 of
-# theory_eps_hmg_models.md); we keep s=0.953 [0.70,1.51] to match the published Table A.1 / Fig A.2
-# (the ~0.03 shift is well within the spread). The DEFINING chi2_nu=0.74 (n_sigma=0.858) is set in
-# make_tab_regimes (_xc_nsig). Replaces the scalar-s Model B value (0.66), degenerate with r_nei.
-# NOT Model D (r_nei=747/s): that tie is a CUL-DE-SAC (747 fitted to these same clusters -> circular).
-# Mirror (open star): 1/s_main per consistència amb la resta de sistemes (s·s_alt≈1).
-_xcm, _xcl, _xch = 0.953, 0.70, 1.51
-_xom, _xol, _xoh = 1/0.953, 1/1.51, 1/0.70   # ≈ 1.050 [0.662, 1.429]
-rows.append(_row("X-COP", _xrm, _xrl, _xrh, _xcm, _xcl, _xch, len(xcop_sf),
+# X-COP: median and 16th-84th percentiles of the per-cluster joint-fit s (model C); the
+# mirror (open star) is 1/s. The reduced chi2 of this model is read in make_tab_regimes.
+_xcm, _xcl, _xch = pct(xcop_sj); _xom, _xol, _xoh = pct(1.0 / xcop_sj); _xrm, _xrl, _xrh = pct(xcop_req)
+rows.append(_row("X-COP", _xrm, _xrl, _xrh, _xcm, _xcl, _xch, len(xcop_sj),
                  _xom, _xol, _xoh, degenerate=abs(_xc_clo - _xc_chi) < DELTA_DEG))
 print(f"  [Delta chi2 branches] SPARC={abs(_sp_wh-_sp_wl):.1f}  HIFLUGCS={abs(_hf_clo-_hf_chi):.1f}  "
       f"X-COP={abs(_xc_clo-_xc_chi):.1f}  (degenerate if <{DELTA_DEG})")
