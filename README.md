@@ -43,7 +43,7 @@ The morphological and colour profiles of Brouwer et al. (2021, Fig. 8; split at 
 
 * SPARC galaxies (McGaugh 2007), HIFLUGCS clusters (Monjo & Banik 2025) and the galaxy–galaxy lensing RAR of Mistele et al. (2024): both HMG branches (s < 1 and s > 1) are fitted; samples of objects are summarised by the median and the 16th–84th percentiles.
 * X-COP clusters (Eckert et al. 2022): s and the neighbourhood radius r_nei are fitted jointly per cluster. With r_nei free, chi2(s) is shallow, so s is weakly constrained.
-* Gas-rich UDGs (Mancera Piña et al. 2022): joint fit of one s; MIGHTEE UDGs (Ponomareva et al. 2021): s per galaxy, n_σ at the median s.
+* Gas-rich UDGs (Mancera Piña et al. 2022) and MIGHTEE UDGs (Ponomareva et al. 2021): one s fitted jointly to each sample, n_σ at that s; MIGHTEE also without J022350.6−045045, an outlier of the baryonic Tully–Fisher relation (nominal velocity uncertainty ±8 km/s). Fig. A.2 also shows the s that matches each MIGHTEE galaxy alone.
 * Milky Way: values of the radial and vertical analysis (`data/external_reference/mw_chi2nu_MI.txt`).
 * X-ray groups (Gastaldello et al. 2007): s per group from the NFW reconstruction (`data/gastaldello2007.csv`).
 
