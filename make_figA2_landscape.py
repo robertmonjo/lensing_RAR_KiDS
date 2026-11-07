@@ -235,16 +235,16 @@ for e, curve in [(extra[0], c_all), (extra[1], c_late), (extra[2], c_early),
                          hi=_bmin(curve, 1.0, s_max_ax)))
 
 # ── Symmetric branch relations forced to cross at s = 1 (regime change) ─────────
-#   s_lo(r_eq) = k r_eq^{+P} ,  s_hi(r_eq) = (1/k) r_eq^{-P}  =>  s_lo s_hi = 1.
+#   s_lo(r_eq) = lambda r_eq^{+P} ,  s_hi(r_eq) = (1/lambda) r_eq^{-P}  =>  s_lo s_hi = 1.
 #   Exponent P = 1 is the physical "constant neighbourhood density" line: from
 #   1/s^3 = (v_H^2/2v_N^2)(rho_s/rho_0) at fixed r, rho_s => s ∝ r_eq.
-#   Fit the single amplitude k using ONLY the filled (preferred, lower-chi2) point
-#   of each subsample.  A lower-basin point gives  ln k = ln s - P ln r_eq ;
-#   an upper-basin point gives  ln k = -ln s - P ln r_eq  (mirror about s=1).
+#   Fit the single amplitude lambda using ONLY the filled (preferred, lower-chi2) point
+#   of each subsample.  A lower-basin point gives  ln lambda = ln s - P ln r_eq ;
+#   an upper-basin point gives  ln lambda = -ln s - P ln r_eq  (mirror about s=1).
 FIT_SET = 'bins'   # 'bins' (paper: s_low/s_high from the 4 mass bins) | 'all' (all filled points)
 SHADE_MODE = 'multifield'   # 'multifield'(paper) | 'field' | 'logs' | 'hybrid' | 'deeplimit' | 'greybands'
 A0_SI = 1.20e-10        # MOND acceleration scale [m s^-2], for g_s/a_0 shading
-# Fit s_low = k * r_eq^a to the four mass bins, folding each s>1 point to its s<1 mirror.
+# Fit s_low = lambda * r_eq^a to the four mass bins, folding each s>1 point to its s<1 mirror.
 # Exponent a = 1 (fixed): the "constant neighbourhood density" line (s ~ r_eq); a free fit
 # on the current bins gives a = 0.86 with the same 0.086 dex scatter, so a = 1 is retained.
 SLOPE = 1.0
@@ -265,7 +265,7 @@ K = float(np.exp(_lnk))
 R_CROSS = K ** (-1.0 / SLOPE)   # r_eq where s_lo = s_hi = 1
 L_SYM = 0.24  # [Mpc] exponential scale length: s_sym = exp(+-L_SYM/r_eq)
 _rms = float(np.sqrt(np.mean((np.array(_ly) - (SLOPE*np.array(_lx) + _lnk))**2)) / np.log(10))  # dex
-print(f"exponent a={SLOPE:.3f}  k(filled)={K:.3f}  s=1 crossing r_eq={R_CROSS:.3f} Mpc  L_SYM={L_SYM:.2f}  rms={_rms:.3f} dex")
+print(f"exponent a={SLOPE:.3f}  lambda(filled)={K:.3f}  s=1 crossing r_eq={R_CROSS:.3f} Mpc  L_SYM={L_SYM:.2f}  rms={_rms:.3f} dex")
 
 # ── Matplotlib style ──────────────────────────────────────────────────────────
 mpl.rcParams.update({
@@ -300,17 +300,17 @@ fig.subplots_adjust(left=0.09, right=0.98, bottom=0.12, top=0.96, wspace=0.16)
 # ══════════════════════════════════════════════════════════════════════════════
 # Panel (a) — s_equal regime map (x=r, y=s)   [LEFT, shows y-axis]
 # ══════════════════════════════════════════════════════════════════════════════
-# s_low/s_high power-law relations with k=1 [Mpc^-1], crossing at r_eq = 1/k = 1 Mpc.
-# s_low = k*r_eq (neighbourhood-dominated), s_high = 1/(k*r_eq) (Hubble-dominated),
-# merging to s=1 for r_eq >= 1/k.
-K_REF = 1.0   # [Mpc^-1]
+# s_low/s_high relations (Eqs. slo-shi) with the fitted amplitude lambda = K [Mpc^-1],
+# crossing at r_eq = 1/lambda: s_low = lambda*r_eq (vicinity-dominated),
+# s_high = 1/(lambda*r_eq) (Hubble-dominated), merging to s=1 for r_eq >= 1/lambda.
+K_REF = K   # [Mpc^-1]
 r_line = np.logspace(-3, np.log10(r_max_ax), 500)  # from 0.001 Mpc ≈ 0
 _slo = np.where(r_line < 1.0/K_REF, K_REF * r_line, 1.0)
 _shi = np.where(r_line < 1.0/K_REF, 1.0 / (K_REF * r_line), 1.0)
 ax1.plot(r_line, _shi, color='#333333', lw=1.6, ls=(0, (6, 3)), zorder=3)
 ax1.plot(r_line, _slo, color='#333333', lw=1.6, ls=(0, (6, 3)), zorder=3)
-# Additional s_low/s_high curves for k=0.5 and k=2 [Mpc^-1] in light grey
-for _k_alt in (0.5, 2.0):
+# The same relations for lambda/2 and 2 lambda, in light grey
+for _k_alt in (0.5 * K, 2.0 * K):
     _slo_alt = np.where(r_line < 1.0/_k_alt, _k_alt * r_line, 1.0)
     _shi_alt = np.where(r_line < 1.0/_k_alt, 1.0 / (_k_alt * r_line), 1.0)
     ax1.plot(r_line, _shi_alt, color='#aaaaaa', lw=0.9, ls=(0, (6, 3)), zorder=2)
