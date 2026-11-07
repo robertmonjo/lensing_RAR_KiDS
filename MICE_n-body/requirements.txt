@@ -1,0 +1,6 @@
+# MICE2 pipeline (run_mice_pipeline.sh), in addition to ../requirements.txt
+# versions of the environment that produced the files in data/
+numpy==2.5.2
+scipy==1.18.0
+astropy==8.0.1
+requests==2.34.2

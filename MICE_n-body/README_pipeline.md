@@ -6,6 +6,8 @@ MICE2 (Crocce et al. 2015; Fosalba et al. 2015; Carretero et al. 2015) is distri
 
 ## Run
 
+Requirements: `pip install -r requirements.txt` (NumPy, SciPy, Astropy and Requests; the versions listed are those of the environment that produced the files in `data/`).
+
 ```bash
 cd MICE_n-body/scripts
 bash run_mice_pipeline.sh path/to/cosmohub_credentials.txt   # user name on line 1, password on line 2

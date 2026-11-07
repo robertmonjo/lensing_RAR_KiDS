@@ -8,13 +8,14 @@ nu = N - 1 and n_sigma = sqrt(chi2 / nu).
 Gas-rich UDGs (Mancera Pina et al. 2022; six galaxies, one outer rotation velocity each;
 data/external_reference/udg_manceraPina2022.txt, model of fit_hmg_udg.py).
 
-MIGHTEE UDGs (Ponomareva et al. 2021; four galaxies with kinematics;
-data/external_reference/mightee_udg_ponomareva2021.txt):
+MIGHTEE UDGs (the four UDGs of Adams et al. 2026 with kinematics, taken from Ponomareva
+et al. 2021; data/external_reference/mightee_udg_ponomareva2021.txt):
   M_bar = 1.33 M_HI + M*, r_sys = R_HI (Wang et al. 2016 HI size-mass relation),
-  v_N = sqrt(G M_bar / r_sys); nominal velocity uncertainty +/- 8 km/s (no per-galaxy
-  uncertainty is published). The joint fit is also given without J022350.6-045045, the
-  galaxy that Ponomareva et al. (2021) identify as an outlier of the baryonic Tully-Fisher
-  relation. For Fig. A.2, the s that matches each galaxy alone is also computed, with a
+  v_N = sqrt(G M_bar / r_sys). No per-galaxy velocity uncertainty is published; +/- 8 km/s
+  is assumed for all four. With one uniform symmetric uncertainty the best-fit s does not
+  depend on its value, the Delta chi2 = 1 interval widens with it and n_sigma scales as
+  its inverse. The joint fit is also given without J022350.6-045045, the one of the four
+  that Adams et al. (2026) find off the baryonic Tully-Fisher relation. For Fig. A.2, the s that matches each galaxy alone is also computed, with a
   range from scaling r_sys by 0.6 and 1.4 (+/- 40 per cent).
 
 r_eq = (G M_bar t0^2)^(1/3) as in Table A.1.

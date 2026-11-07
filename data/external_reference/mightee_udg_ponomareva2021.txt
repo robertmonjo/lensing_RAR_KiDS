@@ -1,6 +1,6 @@
 # MIGHTEE UDGs with kinematics (Ponomareva et al. 2021, cross-matched to Adams 2026 LSBGs)
 # M_bar = 1.33*10^logMHI + 10^logMstar ; r_sys = R_HI (Wang+2016 HI size-mass); v_newton = sqrt(G M_bar/r_sys)
-# nominal velocity errors (Ponomareva table gives no per-galaxy Vout error): +/- 8 km/s
+# velocity uncertainty assumed (no per-galaxy Vout uncertainty is published): +/- 8 km/s
 # id  log10_mbar  r_kpc  v_obs  sig+  sig-  v_newton
 J021759.3-041634  9.820  19.45  72.0  8  8  38.2
 J022350.6-045045  10.253  33.63  66.5  8  8  47.9

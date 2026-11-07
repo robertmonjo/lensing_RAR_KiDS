@@ -74,7 +74,7 @@ print(f"with 0.45<=B/T<0.55: {int(np.sum((BT>=0.45)&(BT<0.55)))}")
 
 def dump(mask, label):
     lgb = np.log10(gbar_map(LM[mask]))
-    print(f"### {label}  n={mask.sum()}")
+    print(f"### {label}  n_map={mask.sum()}")   # lenses of both matched subsets of the split
     for i in range(15):
         print(f"{R[i]:.5f} {lgb[i]:.6f}")
 
