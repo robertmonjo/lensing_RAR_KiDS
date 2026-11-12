@@ -448,7 +448,7 @@ GBAR_MIN, GBAR_MAX = 3e-16, 3e-11
 gbar_c = np.logspace(np.log10(GBAR_MIN), np.log10(GBAR_MAX), 300)
 a0_si  = A0_CODE * CODE_TO_SI
 
-fig, axes = plt.subplots(3, 2, figsize=(10, 10.5), sharex=True, sharey=True)
+fig, axes = plt.subplots(3, 2, figsize=(8, 8.4), sharex=True, sharey=True)
 axes = axes.flatten()
 
 print("\nGenerating plot curves ...")
@@ -526,31 +526,24 @@ for i, (ax, ms, mh0, bcol, blbl) in enumerate(
                 fmt="o", color=bcol, ms=4.5, lw=1.0, capsize=2, zorder=6,
                 label="KiDS-1000")
 
-    # Info box: halo parameters for this bin
-    ax.text(0.97, 0.05,
-            rf"$M_h={mh0:.1e}\,M_\odot$, $r_{{200}}={_r200(mh0):.0f}$ kpc"
-            f"\n" rf"$c={_conc(mh0):.1f}$, $b_g={_b_g(mh0):.2f}$, "
-            rf"$\xi_0^*={XI0_BEST:.1f}$",
-            transform=ax.transAxes, ha="right", va="bottom",
-            fontsize=7, color="0.30",
-            bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="0.80", alpha=0.85))
-
     ax.axvline(a0_si, color="0.60", lw=0.8, ls="--", zorder=1)
 
     ax.set_xscale("log"); ax.set_yscale("log")
-    ax.grid(True, which='major', color='#dddddd', lw=0.5, alpha=0.7, zorder=0)
     ax.set_xlim(GBAR_MIN, GBAR_MAX)
     ax.set_ylim(5e-15, 1e-10)
     ax.text(0.04, 0.97, blbl, transform=ax.transAxes,
             ha='left', va='top', fontsize=8,
             bbox=dict(boxstyle='square,pad=0.15', fc='white', ec='none', alpha=0.85))
     _h, _l = ax.get_legend_handles_labels()
-    _mice_h = _BandLineHandle("#f1c40f", "#f1c40f", lw=0.8, alpha=0.14)
-    ax.legend(handles=_h + [_mice_h],
-              labels=_l + [r"MICE $\Lambda$CDM isolated (this work)"],
-              handler_map={_BandLineHandle: _HandlerBandLine()},
+    _per_bin = [(h, l) for h, l in zip(_h, _l) if "per-bin" in l]
+    ax.legend(handles=[h for h, _ in _per_bin], labels=[l for _, l in _per_bin],
               fontsize=6.8, loc="lower right", framealpha=0.93,
               handlelength=2.1, labelspacing=0.30)
+    if i == 0:
+        _common = [(h, l) for h, l in zip(_h, _l) if "per-bin" not in l]
+        _common_h = [h for h, _ in _common] + [_BandLineHandle("#f1c40f", "#f1c40f", lw=0.8, alpha=0.14)]
+        _common_l = [("KiDS-1000 (stellar-mass bins)" if l == "KiDS-1000" else l) for _, l in _common]
+        _common_l += [r"MICE $\Lambda$CDM isolated (this work)"]
 
 # ── Bottom row: morphological subsets (= fig 3 content) ───────────────────────
 C_LATE  = '#2ecc71';  C_EARLY = '#8e44ad'
@@ -605,7 +598,7 @@ morph_panels = [
      "late", "early"),
     (gb_blue,  go_blue,  ge_blue,  s_blue,  c2_blue,
      gb_red,   go_red,   ge_red,   s_red,   c2_red,
-     'Color bins', 'Blue (late)', 'Red (early)',
+     'Colour bins', 'Blue (late)', 'Red (early)',
      C_BLUE, C_RED, 'o', 'o',
      C_LATE_HMG, C_EARLY_HMG,
      _mice_cb, _mice_cr,
@@ -667,20 +660,20 @@ for ax, (gb_l, go_l, ge_l, sl, c2l,
     ax.axvline(a0_si, color="0.60", lw=0.8, ls="--", zorder=1)
 
     ax.set_xscale("log"); ax.set_yscale("log")
-    ax.grid(True, which='major', color='#dddddd', lw=0.5, alpha=0.7, zorder=0)
     ax.set_xlim(GBAR_MIN, GBAR_MAX)
     ax.set_ylim(5e-15, 1e-10)
     ax.text(0.04, 0.97, title, transform=ax.transAxes,
             ha='left', va='top', fontsize=8,
             bbox=dict(boxstyle='square,pad=0.15', fc='white', ec='none', alpha=0.85))
     _h, _l = ax.get_legend_handles_labels()
+    _keep = [(h, l) for h, l in zip(_h, _l) if l not in ("MOND deep limit", "Newton 1:1")]
     _mh_l = _BandLineHandle("#f1c40f", "#f1c40f", ls="-",  lw=0.8, alpha=0.14)
     _mh_e = _BandLineHandle("#d4ac0d", "#d4ac0d", ls="--", lw=0.8, alpha=0.14)
-    ax.legend(handles=_h + [_mh_l, _mh_e],
-              labels=_l + [lab_ml, lab_me],
+    ax.legend(handles=[h for h, _ in _keep] + [_mh_l, _mh_e],
+              labels=[l for _, l in _keep] + [lab_ml, lab_me],
               handler_map={_BandLineHandle: _HandlerBandLine()},
-              fontsize=6.8, loc="lower right", framealpha=0.93,
-              handlelength=2.1, labelspacing=0.30)
+              fontsize=6.3, loc="lower right", framealpha=0.93, ncol=2,
+              handlelength=1.4, handletextpad=0.4, labelspacing=0.25, columnspacing=0.6, borderpad=0.3)
 
 XLABEL = r"$g_\mathrm{bar}=GM_\mathrm{bar}/r^2\;[\mathrm{m\,s^{-2}}]$"
 YLABEL = r"$g_\mathrm{obs}\;[\mathrm{m\,s^{-2}}]$"
@@ -706,6 +699,9 @@ for ax in axes[1::2]:
     ax.set_ylabel(YLABEL, fontsize=10)
 
 plt.tight_layout(h_pad=0.25, w_pad=0.25)
+fig.legend(handles=_common_h, labels=_common_l, handler_map={_BandLineHandle: _HandlerBandLine()},
+           loc="lower center", bbox_to_anchor=(0.5, 1.0), ncol=3, fontsize=7.5, frameon=False,
+           handlelength=2.1, columnspacing=1.2)
 
 out = Path(__file__).resolve().parent / "outputs" / "fig1_kids_rar.png"
 out.parent.mkdir(exist_ok=True)

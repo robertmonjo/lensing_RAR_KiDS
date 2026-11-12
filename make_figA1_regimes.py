@@ -2,7 +2,7 @@
 Publication-quality two-panel figure for sec:two_regimes — vertical layout.
 
 Panel (a): xi2_s decomposition vs s   [log-log, r=1 Mpc, M*=3.2e10 Msun]
-Panel (b): g_cosm/a0 vs r [Mpc]       [log-log, 8 s values, thin->thick lw]
+Panel (b): g_s/a0 vs r [Mpc]       [log-log, 8 s values, thin->thick lw]
 """
 import math
 import numpy as np
@@ -153,7 +153,7 @@ ax1.text(-0.09, 1.04, '(a)', transform=ax1.transAxes,
 # ══════════════════════════════════════════════════════════════════════════════
 
 # KiDS weak-lensing band
-KIDS_RMIN, KIDS_RMAX = 0.04, 2.0
+KIDS_RMIN, KIDS_RMAX = 0.035, 2.6   # radial range of the KiDS-1000 points [Mpc]
 ax2.axvspan(KIDS_RMIN, KIDS_RMAX, alpha=0.10, color='#e8a838', zorder=0, lw=0)
 ax2.text(0.40, 0.40, 'KiDS\nweak-lensing', color='#a07020',
          transform=ax2.transAxes,
@@ -172,11 +172,11 @@ for gc, clr, lw, lbl in reversed(curves_B):   # thick first → behind thin line
 ax2.axhline(1.0, color='#888888', lw=0.8, ls='--', zorder=1)
 ax2.text(4.7, 1.10, r'$a_0$', color='#888888', fontsize=8, va='bottom', ha='right')
 ax2.axhline(g_max, color='#888888', lw=0.6, ls=':', zorder=1)
-ax2.text(4.7, g_max * 0.88, r'$g_\mathrm{cosm}^\mathrm{max}$',
+ax2.text(4.7, g_max * 0.88, r'$g_s^\mathrm{max}$',
          color='#888888', fontsize=7.5, va='top', ha='right')
 
 ax2.set_xlabel(r'projected radius $r\;[\mathrm{Mpc}]$')
-ax2.set_ylabel(r'$g_\mathrm{cosm}\;/\,a_0$')
+ax2.set_ylabel(r'$g_s\;/\,a_0$')
 ax2.set_xlim(0.030, 5.0)
 ax2.set_ylim(0.10, 8.0)
 
