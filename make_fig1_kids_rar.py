@@ -477,7 +477,7 @@ for i, (ax, ms, mh0, bcol, blbl) in enumerate(
     g_cdm_g = gobs_cdm(r_kpc_c, ms, mh0, XI0_BEST)
     ax.plot(gbar_c, g_cdm_g,
             color="#e67e22", lw=2.1, ls="-", zorder=3,
-            label=(rf"CDM+2h $\xi_0={XI0_BEST:.1f}$ "
+            label=(rf"CDM+2h $\zeta_0={XI0_BEST:.1f}$ "
                    rf"($\chi^2_\nu={C2_CDM:.2f}$, 1 param)"))
     print("done")
 
