@@ -272,7 +272,8 @@ def kids_row(name, disp, rsys, cite):
     mbar = mstar * (1 + fcold(mstar))
     # chi2nu from make_tables.py (full HMG formula for all subsamples, including morphological)
     return dict(name=disp, cite=cite, mbar=mbar, rsys=rsys,
-                s=s, s_lo=s - e, s_hi=s + e, s_disp=None, work=True, nsig=math.sqrt(c2nu))
+                s=s, s_lo=s - e, s_hi=s + e, s_disp=None, work=True, nsig=math.sqrt(c2nu),
+                s_prec=3 if e < 0.01 else 2)   # keep the digit that carries the error
 
 
 def ref_row(disp, mbar, rsys, s, s_lo, s_hi, cite, s_disp=None, nsig_fn=None, seq=None):
@@ -384,7 +385,7 @@ for sy in SYSTEMS:
     if man >= 9.95:
         man /= 10; e += 1
     mtex = f"${man:.1f}\\times10^{{{e}}}$"
-    s_str = sy["s_disp"] if sy["s_disp"] else pm(sy["s"], sy["s_lo"], sy["s_hi"], 2)
+    s_str = sy["s_disp"] if sy["s_disp"] else pm(sy["s"], sy["s_lo"], sy["s_hi"], sy.get("s_prec", 2))
     xi_str = pm(d["xi2"], xi_lo if sy["s_lo"] else None, xi_hi if sy["s_hi"] else None, 2)
     gs_str = pm(d["gs"], gs_lo if sy["s_lo"] else None, gs_hi if sy["s_hi"] else None, 2)
     ns = sy.get("nsig")
