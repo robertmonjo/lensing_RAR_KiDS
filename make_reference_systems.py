@@ -232,7 +232,7 @@ print(f"  [X-COP] s<1 median={_xcm:.2f} [{_xcl:.2f},{_xch:.2f}]  s>1 mirror medi
       f"[{_xol:.2f},{_xoh:.2f}]  r_eq median={_xrm:.2f} Mpc  (N={len(xcop_sf)})")
 # Milky Way (nbar1 = MI fit, the best reconstruction, chi2nu = 2.63): two degenerate branches
 # -- s=2.375 (+0.14,-0.14) [s>=1] and mirror s=0.42 (+0.03,-0.02) [s<1]; the s<1 branch has the
-# (marginally) lower chi2, so it is the filled one. r_eq from M_bar = 7.41e10 Msun (MI, Nieve p50).
+# (marginally) lower chi2, so it is the filled one. r_eq from M_bar = 7.41e10 Msun (MI fit, posterior median).
 _mw_req = r_newton_kpc(7.41e10) / 1000.0
 rows.append(_row("Milky Way", _mw_req, _mw_req, _mw_req, 0.42, 0.40, 0.45, 152, 2.375, 2.24, 2.51,
                  degenerate=True))   # deep (v_H/v_N=0): the two branches are exactly degenerate

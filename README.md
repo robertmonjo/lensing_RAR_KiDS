@@ -1,6 +1,6 @@
 # Weak-lensing radial acceleration relation of KiDS-1000 isolated galaxies: a test of Hyperconical Modified Gravity
 
-Code and data to reproduce every figure and table of the paper (R. Monjo and R. Ullah, A&A, aa62683-26). The paper compares Hyperconical Modified Gravity (HMG), MOND and ΛCDM with the weak-lensing radial acceleration relation (RAR) of isolated KiDS-1000 galaxies (Brouwer et al. 2021).
+Code and data to reproduce every figure and table of the paper (R. Monjo and R. Ullah, A&A, in press, manuscript aa62683-26). The paper compares Hyperconical Modified Gravity (HMG), MOND and ΛCDM with the weak-lensing radial acceleration relation (RAR) of isolated KiDS-1000 galaxies (Brouwer et al. 2021).
 
 The repository is self-contained: the scripts read only `./data` and write only to `./outputs`.
 
@@ -16,9 +16,9 @@ python run_all.py                    # about one hour on one core
 | Script | Output (`./outputs`) | Paper |
 |---|---|---|
 | `hmg_model.py` | library: constants, HMG, MOND and CDM models, KiDS data, shared fits | — |
-| `make_tables.py` | `tab_model_comparison.csv`, `tab_morph_pairs.csv` | Table 1, morphological pairs of Sect. 3 |
-| `morph_threshold_sensitivity.py` | `morph_threshold_sensitivity.csv` | proxy thresholds, Sect. 2.1 |
-| `10_lin_chi2_table2.py` | `tab_mice_comparison.csv` | Table 2 |
+| `make_tables.py` | `tab_model_comparison.csv`, `tab_morph_pairs.csv` | Table 1, morphological pairs of Sect. 3.1 |
+| `morph_threshold_sensitivity.py` | `morph_threshold_sensitivity.csv` | proxy thresholds, Sect. 3.1 |
+| `make_tab_mice_comparison.py` | `tab_mice_comparison.csv` | Table 2 |
 | `xcop_s_rnei_joint.py` | `xcop_s_rnei_grid.csv`, `xcop_s_rnei_ridge.csv`, `xcop_s_rnei_profile.png` | X-COP row of Table A.1, Fig. A.2 |
 | `fit_external_udg.py` (uses `fit_hmg_udg.py`) | `udg_systems.csv`, `mightee_per_galaxy.csv` | UDG rows of Table A.1, Fig. A.2 |
 | `make_reference_systems.py` | `reference_systems.csv`, per-object CSV files | external systems of Table A.1 and Fig. A.2 |
@@ -37,7 +37,7 @@ All reduced chi-squared values follow Sect. 2.4 of the paper: diagonal KiDS unce
 
 ## Morphological subsets
 
-The morphological and colour profiles of Brouwer et al. (2021, Fig. 8; split at Sérsic index n = 2 and at u − r = 2.5) are tabulated against g_bar = G M_gal / R², with M_gal = M* (1 + f_cold) and the cold-gas relation of Boselli et al. (2014). The two subsets of each split have the same stellar-mass distribution. To evaluate HMG, whose Hubble term depends on R, g_bar is converted to R with the isolated MICE2 lenses: the two MICE subsets of each split (bulge fraction B/T = 0.5; rest-frame g − r = 0.6) are reduced to the same stellar-mass distribution, and both share the map g_bar(R) = (⟨√(G M_gal)⟩ / R)² (`data/morph_gbar_r_mice.txt`, median masses in `data/morph_mstar_mice.csv`). `tab_morph_pairs.csv` gives, for each split, the separation of the two basin minima, the quiescent to star-forming ratio of the observed and predicted accelerations, and the star-forming fit evaluated on the quiescent data. `morph_threshold_sensitivity.py` repeats the fits with the maps obtained by moving the MICE2 cuts (B/T = 0.45; g − r = 0.55, 0.65) and with other seeds of the random mass matching (`data/morph_map_variants/`).
+The morphological and colour profiles of Brouwer et al. (2021, Fig. 8; split at Sérsic index n = 2 and at u − r = 2.5) are tabulated against g_bar = G M_bar / R², with M_bar = M* (1 + f_cold) (M_gal in Brouwer et al. 2021) and the cold-gas relation of Boselli et al. (2014). The two subsets of each split have the same stellar-mass distribution. To evaluate HMG, whose Hubble term depends on R, g_bar is converted to R with the isolated MICE2 lenses: the two MICE subsets of each split (bulge fraction B/T = 0.5; rest-frame g − r = 0.6) are reduced to the same stellar-mass distribution, and both share the map g_bar(R) = (⟨√(G M_bar)⟩ / R)² (`data/morph_gbar_r_mice.txt`, median masses in `data/morph_mstar_mice.csv`). `tab_morph_pairs.csv` gives, for each split, the separation of the two basin minima, the quiescent to star-forming ratio of the observed and predicted accelerations, and the star-forming fit evaluated on the quiescent data. `morph_threshold_sensitivity.py` repeats the fits with the maps obtained by moving the MICE2 cuts (B/T = 0.45; g − r = 0.55, 0.65) and with other seeds of the random mass matching (`data/morph_map_variants/`).
 
 ## External systems (Table A.1, Fig. A.2)
 

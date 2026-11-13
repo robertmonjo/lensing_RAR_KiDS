@@ -12,9 +12,20 @@ authors:
     affiliation: "Complutense University of Madrid, Spain"
 license: MIT
 repository-code: "https://github.com/robertmonjo/lensing_RAR_KiDS"
-version: "1.0.0"
+version: "2.0.0"
+date-released: "2026-11-13"
 keywords:
   - gravitational lensing weak
   - modified gravity
   - radial acceleration relation
   - dark matter
+preferred-citation:
+  type: article
+  title: "Weak-lensing radial acceleration relation of KiDS-1000 isolated galaxies: a test of Hyperconical Modified Gravity"
+  authors:
+    - family-names: Monjo
+      given-names: Robert
+    - family-names: Ullah
+      given-names: R.
+  journal: "Astronomy & Astrophysics"
+  year: 2026

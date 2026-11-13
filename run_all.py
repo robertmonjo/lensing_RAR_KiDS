@@ -7,7 +7,7 @@ Steps, in order (outputs in ./outputs):
   make_tables.py                     Table 1                      tab_model_comparison.csv,
                                                                   tab_morph_pairs.csv
   morph_threshold_sensitivity.py     Sect. 2.1 proxy thresholds   morph_threshold_sensitivity.csv
-  10_lin_chi2_table2.py              Table 2                      tab_mice_comparison.csv
+  make_tab_mice_comparison.py        Table 2                      tab_mice_comparison.csv
   xcop_s_rnei_joint.py               X-COP joint (s, r_nei) fits  xcop_s_rnei_grid.csv
   fit_external_udg.py                gas-rich and MIGHTEE UDGs    udg_systems.csv, mightee_per_galaxy.csv
   make_reference_systems.py          external systems             reference_systems.csv, *_per_*.csv
@@ -33,7 +33,7 @@ OUT = os.path.join(HERE, "outputs")
 STEPS = [
     "make_tables.py",
     "morph_threshold_sensitivity.py",
-    "10_lin_chi2_table2.py",
+    "make_tab_mice_comparison.py",
     "xcop_s_rnei_joint.py",
     "fit_external_udg.py",
     "make_reference_systems.py",
