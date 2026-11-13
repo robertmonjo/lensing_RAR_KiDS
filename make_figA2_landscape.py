@@ -1,7 +1,7 @@
 """
 make_figA2_landscape.py -- Fig. A.2 of the paper (double-column):
-  Panel (a) — (r_eq, s) dynamical-regime map (y=s, x=r_eq)          [LEFT]
-  Panel (b) — chi2_nu(s) landscape rotated 90 deg (y=s, x=chi2_nu)  [RIGHT]
+  Panel (a): (r_eq, s) dynamical-regime map (y=s, x=r_eq)          [LEFT]
+  Panel (b): chi2_nu(s) landscape rotated 90 deg (y=s, x=chi2_nu)  [RIGHT]
 
 Both panels share the y-axis (s), linking each subsample's chi2 minimum to its
 location in the regime map.  KiDS data and baryonic masses are imported from
@@ -298,7 +298,7 @@ fig, (ax1, ax2) = plt.subplots(
 fig.subplots_adjust(left=0.09, right=0.98, bottom=0.12, top=0.96, wspace=0.16)
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Panel (a) — s_equal regime map (x=r, y=s)   [LEFT, shows y-axis]
+# Panel (a): s_equal regime map (x=r, y=s)   [LEFT, shows y-axis]
 # ══════════════════════════════════════════════════════════════════════════════
 # s_low/s_high relations (Eqs. slo-shi) with the fitted crossing radius r_x = 1/K [Mpc]:
 # s_low = r_eq/r_x (vicinity-dominated), s_high = r_x/r_eq (Hubble-dominated),
@@ -342,24 +342,24 @@ ax1.text(_r_lbl, 1.0/(K_REF*_r_lbl) * 1.60, r'$s_\mathrm{high}$', color='#333', 
 import csv as _csv
 _refdir = os.path.dirname(DST)
 # Ordered warm-yellow → dark-blue colour sequence (legend order: col3 top→bot, col4 top→bot→MW last)
-# 1 X-COP         groc ataronjat (orange-yellow)
-# 2 HIFLUGCS      groc (yellow)
-# 3 X-ray groups  groc claret (light yellow)
-# 4 gal-gal WL    groc verdós (yellowish-green)
-# 5 SPARC         verd claret (light green)
-# 6 MIGHTEE       verd blavós claret (light blue-green)
-# 7 UDGs          blau cel (sky blue)
-# 8 Milky Way     blau fosc (dark blue) — last in legend
+# 1 X-COP         orange-yellow
+# 2 HIFLUGCS      yellow
+# 3 X-ray groups  light yellow
+# 4 gal-gal WL    yellowish green
+# 5 SPARC         light green
+# 6 MIGHTEE       light blue-green
+# 7 UDGs          sky blue
+# 8 Milky Way     dark blue, last in legend
 _SYS_COL = {
-    'X-COP':      ('#FFA040', '#7A3800'),  # 1 groc ataronjat
-    'HIFLUGCS':   ('#FFD700', '#705800'),  # 2 groc
-    'gal-gal WL': ('#BBCC00', '#4A5200'),  # 4 groc verdós
-    'SPARC':      ('#80CC80', '#204820'),  # 5 verd claret
-    'Milky Way':  ('#1A3BAA', '#0A1A60'),  # 8 blau fosc (last)
+    'X-COP':      ('#FFA040', '#7A3800'),  # 1 orange-yellow
+    'HIFLUGCS':   ('#FFD700', '#705800'),  # 2 yellow
+    'gal-gal WL': ('#BBCC00', '#4A5200'),  # 4 yellowish green
+    'SPARC':      ('#80CC80', '#204820'),  # 5 light green
+    'Milky Way':  ('#1A3BAA', '#0A1A60'),  # 8 dark blue (last)
 }
-_COL_XRG = ('#FFE880', '#705800')   # 3 groc claret      (X-ray groups)
-_COL_MIG = ('#40BBAA', '#005555')   # 6 verd blavós claret (MIGHTEE)
-_COL_UDG = ('#6BB8E8', '#1A5080')   # 7 blau cel          (UDGs)
+_COL_XRG = ('#FFE880', '#705800')   # 3 light yellow     (X-ray groups)
+_COL_MIG = ('#40BBAA', '#005555')   # 6 light blue-green (MIGHTEE)
+_COL_UDG = ('#6BB8E8', '#1A5080')   # 7 sky blue          (UDGs)
 
 def _star(x, y, xe, ye, filled, fc='#ffe14d', ec='#6e5200', erc='#8a6d00'):
     if filled:   # adopted branch: crisp, dark, thick edge
@@ -545,7 +545,7 @@ ax1.errorbar(_um["r_eq"], _sm_med, xerr=_mx,
              mfc='none', mec=_mig_ec, mew=1.4, ms=14, ecolor=_mig_ec,
              elinewidth=1.1, capsize=3, zorder=8, label='_nolegend_')
 
-# ── X-ray galaxy groups (Gastaldello et al. 2007) — chi²_ν fitted s ──────────
+# ── X-ray galaxy groups (Gastaldello et al. 2007): chi²_ν fitted s ──────────
 # Per-group s_best and 68% CI come from fit_gastaldello_s.py (15-point NFW fit,
 # σ=0.10 dex intrinsic scatter). r_eq computed from M_bar = M_gas + M_star.
 # Filled star = s_best branch; open star = 1/s_best mirror.
@@ -707,9 +707,9 @@ elif SHADE_MODE == 'multifield':          # union (max) of 3 g_s fields: equal b
     ax1.text(1.2, 0.08, 'vicinity-dominated', color='#555',
              fontsize=8.2, ha='center', va='center', fontstyle='italic', zorder=4)
 
-# axhline(s=1) and axvline(R_CROSS) removed — no finite crossing with s_sym formula
+# axhline(s=1) and axvline(R_CROSS) removed: no finite crossing with s_sym formula
 
-# Markers at (map_x, s_min) on ax1 — filled = s<1 basin, open = s>1 basin.
+# Markers at (map_x, s_min) on ax1: filled = s<1 basin, open = s>1 basin.
 # s_min is the TRUE argmin of each chi2 curve (so they align with panel b).
 # Both branches per subsample; FILL the preferred (lower-chi2) one, leave the other open.
 for el in ELEMENTS:
@@ -778,7 +778,7 @@ ax1.yaxis.set_minor_locator(mticker.NullLocator())
 # NOTE: ax1 yticklabels are applied AFTER ax2 to avoid being reset by sharey behaviour.
 # See the block labelled "Re-apply ax1 y-tick labels" below.
 
-# ── Legend 1: small top-right — filling criteria only ─────────────────────────
+# ── Legend 1: small top-right: filling criteria only ─────────────────────────
 _ms_lc = 9   # marker size for legend circles (both same)
 proxy_filled = Line2D([0], [0], marker='o', color='#666', ms=_ms_lc,
                       mec='white', mew=0.9, ls='', label=r'preferred (min $\chi^2_\nu$)')
@@ -791,7 +791,7 @@ leg_fill = ax1.legend(handles=[proxy_filled, proxy_open],
 leg_fill.get_title().set_fontweight('bold')
 ax1.add_artist(leg_fill)
 
-# ── Legend 2: main bottom-right — 4 columns (col-major order: each col top→bottom) ──
+# ── Legend 2: main bottom-right: 4 columns (col-major order: each col top→bottom) ──
 _SP = _SYS_COL['SPARC'];   _MW = _SYS_COL['Milky Way']
 _XC = _SYS_COL['X-COP'];   _HF = _SYS_COL['HIFLUGCS'];  _GW = _SYS_COL['gal-gal WL']
 _blank = Line2D([], [], color='none', linewidth=0, label='')
@@ -840,7 +840,7 @@ ax1.text(-0.02, 1.04, '(a)', transform=ax1.transAxes,
          fontsize=11, fontweight='bold', va='bottom', ha='right')
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Panel (b) — chi2_nu landscape ROTATED 90° (x=chi2, y=s)   [RIGHT]
+# Panel (b): chi2_nu landscape ROTATED 90° (x=chi2, y=s)   [RIGHT]
 # ══════════════════════════════════════════════════════════════════════════════
 
 # Reference lines
@@ -848,14 +848,14 @@ ax2.axvline(1.0, color='#888888', lw=0.8, ls='--', zorder=1)
 ax2.text(1.13, s_max_ax * 0.88, r'$\chi^2_\nu=1$', color='#888888',
          fontsize=7.5, va='top', ha='left')
 
-# Per-bin chi2 curves (dashed, colored) — rotated
+# Per-bin chi2 curves (dashed, colored): rotated
 bin_colors = ['#3498db', '#27ae60', '#e67e22', '#c0392b']
 bin_labels_short = [r'Bin 1', r'Bin 2', r'Bin 3', r'Bin 4']
 for i, (col, lbl) in enumerate(zip(bin_colors, bin_labels_short)):
     ax2.loglog(c_bins[i], s_arr, color=col, lw=1.3, ls='--',
                label=lbl, zorder=3)
 
-# Global + morphological curves (thick, solid) — rotated
+# Global + morphological curves (thick, solid): rotated
 ax2.loglog(c_all,   s_arr, color='#222222', lw=2.4,
            label='Global (all bins)', zorder=5)
 ax2.loglog(c_late,  s_arr, color='#2ecc71', lw=2.2,

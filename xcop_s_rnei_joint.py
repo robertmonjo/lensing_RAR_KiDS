@@ -237,7 +237,7 @@ def main():
     ax1.set_ylim(0, 5); ax1.set_xlim(S_GRID[0], S_GRID[-1])
     ax1.legend(fontsize=8)
 
-    # Panel 2: r_nei_best(s) — degeneracy ridge
+    # Panel 2: r_nei_best(s): degeneracy ridge
     rm  = np.array(ridge_med)
     rp16= np.array(ridge_p16)
     rp84= np.array(ridge_p84)
@@ -255,7 +255,7 @@ def main():
     ax2.set_xscale('log')
     ax2.set_xlabel(r'$s$')
     ax2.set_ylabel(r'$r_\mathrm{nei,best}$ [kpc]')
-    ax2.set_title(r'Degeneracy ridge $r_\mathrm{nei}(s)$ — X-COP')
+    ax2.set_title(r'Degeneracy ridge $r_\mathrm{nei}(s)$: X-COP')
     ax2.legend(fontsize=8)
     ax2.set_xlim(S_GRID[good][0], S_GRID[good][-1])
 

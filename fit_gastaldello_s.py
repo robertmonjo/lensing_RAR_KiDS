@@ -30,7 +30,7 @@ from pathlib import Path
 # ── Constants (match hmg_model.py exactly) ────────────────────────────────
 G_SI        = 6.674e-11      # m3 kg-1 s-2
 G_CODE      = 4.30091727e-6  # (km/s)2 kpc / Msun
-T0          = 14.11          # kpc/(km/s) — Hubble time
+T0          = 14.11          # kpc/(km/s): Hubble time
 C_KMS       = 299792.458     # speed of light km/s (used in g_s)
 CODE_TO_SI  = 3.24078e-14    # (km/s)2/kpc → m/s2
 KPC_M       = 3.0857e19      # m per kpc
@@ -38,7 +38,7 @@ MSUN_KG     = 1.989e30
 SIN2_GU     = np.sin(np.pi / 3) ** 2
 SIN2_GCEN   = 1.0
 
-# ── HMG model — copied from hmg_model.py (gobs_hmg / _cos_over_gamma) ────
+# ── HMG model: copied from hmg_model.py (gobs_hmg / _cos_over_gamma) ────
 def _cos_over_gamma(xi2):
     xi2   = np.asarray(xi2, float)
     delta = np.abs(1.0 - xi2) / (1.0 + xi2 + 1e-30)
@@ -47,9 +47,9 @@ def _cos_over_gamma(xi2):
     return np.cos(gs) / np.maximum(gs, 1e-10)
 
 def gobs_hmg_si(r_kpc, mbar_msun, s):
-    """HMG g_obs [m/s²] — formula: sqrt(a_N*(a_N + 2c/T0*q(ξ²)))*CODE_TO_SI."""
+    """HMG g_obs [m/s²]: formula: sqrt(a_N*(a_N + 2c/T0*q(ξ²)))*CODE_TO_SI."""
     r    = np.asarray(r_kpc, float)
-    v2n  = G_CODE * mbar_msun / r       # (km/s)² — Newtonian circular vel²
+    v2n  = G_CODE * mbar_msun / r       # (km/s)²: Newtonian circular vel²
     vh2  = (r / T0) ** 2
     xi2  = 1.0 / s ** 3 + vh2 / (12.0 * v2n + 1e-60)
     a_n  = v2n / r                      # (km/s)²/kpc
@@ -79,13 +79,13 @@ def sigma_eff_arr(r_ok, r_s_kpc, c, c_err, r_delta_kpc,
     from the same NFW profile (M_tot(r) and f_gas · M_tot(r)).  A fractional shift
     δ in M_tot shifts log g_obs by δ/ln10 but log g_HMG by ≈ 0.5·δ/ln10 (because
     ∂ log g_HMG / ∂ log g_bar ≈ 0.5 in the DM-dominated regime).  Net effect on Δ:
-    0.5·δ/ln10 — a factor-2 cancellation for correlated sources.
+    0.5·δ/ln10: a factor-2 cancellation for correlated sources.
 
     Sources:
-      (a) M_Delta_err   — normalization, fully correlated across r; 0.5× cancellation
-      (b) c_err         — changes NFW profile shape; varies with r; 0.5× cancellation
-      (c) f_gas_err     — shifts only g_bar independently;   0.5× from ∂ log g_HMG/∂ log g_bar
-      (d) M_star_err    — shifts only g_bar independently;   0.5× same as (c)
+      (a) M_Delta_err  : normalization, fully correlated across r; 0.5× cancellation
+      (b) c_err        : changes NFW profile shape; varies with r; 0.5× cancellation
+      (c) f_gas_err    : shifts only g_bar independently;   0.5× from ∂ log g_HMG/∂ log g_bar
+      (d) M_star_err   : shifts only g_bar independently;   0.5× same as (c)
 
     Result: σ_eff per data point in dex.
     """
@@ -105,10 +105,10 @@ def sigma_eff_arr(r_ok, r_s_kpc, c, c_err, r_delta_kpc,
     ratio = np.where(ratio > 0, ratio, 1.0)
     sig_c = 0.5 * np.abs(np.log10(ratio)) / 2.0  # half the ±1σ range, ×0.5 cancellation
 
-    # (c) f_gas_err — independent source, only shifts g_bar
+    # (c) f_gas_err: independent source, only shifts g_bar
     sig_fgas = 0.5 * f_gas_err / (f_gas * ln10)  # scalar
 
-    # (d) M_star_err — independent source, only shifts g_bar
+    # (d) M_star_err: independent source, only shifts g_bar
     if (not np.isnan(m_star_err)) and (not np.isnan(m_star_1e11)) and (m_star_1e11 > 0):
         sig_mstar = 0.5 * m_star_err * 1e11 / (M_bar_ok * ln10)
     else:
@@ -126,10 +126,10 @@ def fit_s(name, r_s_kpc, c, c_err, r_delta_kpc,
     Returns: s_best, chi2_nu_fix, chi2_nu_obs, chi2_nu_s1_obs,
              n_sigma_s1, s_lo, s_hi, r_ok, gbar_si, gobs_si
 
-    chi2_nu_fix    — original χ²_ν with fixed σ=0.10
-    chi2_nu_obs    — χ²_ν at s_best using σ_eff from measurement errors
-    chi2_nu_s1_obs — χ²_ν at s=1 using σ_eff from measurement errors
-    n_sigma_s1     — mean pull |<Δ/σ_eff>| at s=1 (single-measurement proxy)
+    chi2_nu_fix   : original χ²_ν with fixed σ=0.10
+    chi2_nu_obs   : χ²_ν at s_best using σ_eff from measurement errors
+    chi2_nu_s1_obs: χ²_ν at s=1 using σ_eff from measurement errors
+    n_sigma_s1    : mean pull |<Δ/σ_eff>| at s=1 (single-measurement proxy)
     """
     M_tot_msun  = m_delta_1e13 * 1e13
     M_gas_msun  = m_gas_1e13  * 1e13
@@ -345,8 +345,8 @@ OUT_DIR = Path(__file__).resolve().parent / "outputs"
 OUT_DIR.mkdir(exist_ok=True)
 out_csv = OUT_DIR / "gastaldello_s_fit.csv"
 
-with open(out_csv, "w") as f:
-    f.write("# Gastaldello+2007 — HMG s fit per group (NFW reconstruction, f_gas constant)\n")
+with open(out_csv, "w", encoding="utf-8") as f:
+    f.write("# Gastaldello+2007: HMG s fit per group (NFW reconstruction, f_gas constant)\n")
     f.write("# sigma_log=0.10 (10% scatter on log10(g_obs)); dof=N-1\n")
     f.write("name,Delta,r_s_kpc,c,r_Delta_kpc,M_Delta_1e13,M_gas_1e13,M_star_1e11,"
             "s_best,s_lo,s_hi,chi2_nu,N_pts,f_bar\n")
@@ -388,7 +388,7 @@ ax2 = axes[1]
 ax2.scatter(gbar_all, gobs_all, s=8, alpha=0.5, color="#2980b9", zorder=3,
             label=f"All groups ({len(r_all)} pts)")
 gbar_c = np.logspace(np.log10(gbar_all.min()*0.5), np.log10(gbar_all.max()*2), 200)
-# HMG global (using median M_bar scale for model curve — illustrative)
+# HMG global (using median M_bar scale for model curve: illustrative)
 ax2.set_xscale("log"); ax2.set_yscale("log")
 ax2.plot([gbar_all.min()*0.5, gbar_all.max()*2],
          [gbar_all.min()*0.5, gbar_all.max()*2],

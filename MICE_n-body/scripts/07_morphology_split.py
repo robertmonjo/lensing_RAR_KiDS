@@ -1,10 +1,10 @@
 """Split isolated MICE2 lenses by morphology and colour, compute stacked RAR.
 
 Two splits (proxies of the KiDS classifiers of Brouwer et al. 2021, Fig. 8):
-  1. Sérsic proxy — bulge_fraction (= B/T directly in MICE2):
+  1. Sérsic proxy: bulge_fraction (= B/T directly in MICE2):
        Late  (disc):  B/T < 0.5   ~  Sérsic n < 2
        Early (bulge): B/T >= 0.5  ~  Sérsic n >= 2
-  2. Colour — gr_cos (rest-frame g−r from MICE2 SED fitting):
+  2. Colour: gr_cos (rest-frame g−r from MICE2 SED fitting):
        Blue (late):  gr_cos < 0.6
        Red  (early): gr_cos >= 0.6
 

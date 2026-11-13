@@ -1,4 +1,4 @@
-# Gastaldello+2007 — HMG s fit per group (NFW reconstruction, f_gas constant)
+# Gastaldello+2007: HMG s fit per group (NFW reconstruction, f_gas constant)
 # sigma_log=0.10 (10% scatter on log10(g_obs)); dof=N-1
 name,Delta,r_s_kpc,c,r_Delta_kpc,M_Delta_1e13,M_gas_1e13,M_star_1e11,s_best,s_lo,s_hi,chi2_nu,N_pts,f_bar
 NGC5044,1250,77.0,3.8,295.0,1.85,0.121,nan,1.0000180431063328,0.9922750618258566,1.0078094741019135,4.926777761471754,987.9139584594865,987.9356574615234,24.450544433332148,15,0.065

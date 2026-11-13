@@ -344,7 +344,7 @@ for i,(s,c2i) in enumerate(PB_HMG):
 
 ndof = sum(len(b) for b in BINS)
 print("\n" + "=" * 62)
-print("Summary — global fits (1 param each):")
+print("Summary: global fits (1 param each):")
 print(f"  MOND         (0 params):  chi2_nu = {C2_MOND:.3f}")
 print(f"  HMG  s={S_BEST:.3f}  (1 param):  chi2_nu = {C2_HMG:.3f}")
 print(f"  CDM  xi0={XI0_BEST:.2f} (1 param):  chi2_nu = {C2_CDM:.3f}")
@@ -463,12 +463,12 @@ for i, (ax, ms, mh0, bcol, blbl) in enumerate(
     # r_kpc for smooth model curves (from g_bar, Keplerian approx)
     r_kpc_c = np.sqrt(G_SI * ms * MSUN_KG / gbar_c) / KPC_M
 
-    # MOND deep limit — thick very light grey, drawn first (behind everything)
+    # MOND deep limit: thick very light grey, drawn first (behind everything)
     ax.plot(gbar_c, np.sqrt(gbar_c * a0_si),
             color="#e0e0e0", lw=5.0, ls="-", zorder=0,
             label=rf"MOND deep limit ($\chi^2_\nu={C2_MOND:.2f}$)")
 
-    # Newton 1:1 — solid light grey line edge to edge
+    # Newton 1:1: solid light grey line edge to edge
     ax.plot([GBAR_MIN, GBAR_MAX], [GBAR_MIN, GBAR_MAX],
             color="#cccccc", lw=1.2, ls="-", zorder=1, label="Newton 1:1")
 
@@ -505,7 +505,7 @@ for i, (ax, ms, mh0, bcol, blbl) in enumerate(
             color="#00b4d8", lw=2.0, ls="--", alpha=0.60, zorder=5,
             label=rf"HMG per-bin $s={s_pb:.3f}$ ($\chi^2_\nu={c2_hmg_pb:.2f}$)")
 
-    # MICE isolated — B21-style band (envelope of ztrue/zphotoz variants) in yellow
+    # MICE isolated: B21-style band (envelope of ztrue/zphotoz variants) in yellow
     gb_mice, go_mice, go_p16, go_p84 = MICE_PERBIN[i]
     # light blue: R > R_MIN_VALID_MPC region (B21 Fig. 5: unreliable KiDS isolation)
     ax.axvspan(GBAR_MIN, float(gb_mice.max()),
@@ -618,7 +618,7 @@ for ax, (gb_l, go_l, ge_l, sl, c2l,
     ax.plot([GBAR_MIN, GBAR_MAX], [GBAR_MIN, GBAR_MAX],
             color="#cccccc", lw=1.2, ls="-", zorder=1, label="Newton 1:1")
 
-    # MICE morphological — pure band, same criteria as mass-bin panels
+    # MICE morphological: pure band, same criteria as mass-bin panels
     gb_ml, go_ml, p16_ml, p84_ml = mice_l
     gb_me, go_me, p16_me, p84_me = mice_e
     # light blue: region R > R_MIN (both bands clipped to same gbar range)
@@ -678,21 +678,21 @@ for ax, (gb_l, go_l, ge_l, sl, c2l,
 XLABEL = r"$g_\mathrm{bar}=GM_\mathrm{bar}/r^2\;[\mathrm{m\,s^{-2}}]$"
 YLABEL = r"$g_\mathrm{obs}\;[\mathrm{m\,s^{-2}}]$"
 
-# Bottom xlabel — last row
+# Bottom xlabel: last row
 for ax in axes[4:]:
     ax.set_xlabel(XLABEL, fontsize=10)
 
-# Top xlabel — first row (mirrored)
+# Top xlabel: first row (mirrored)
 for ax in axes[:2]:
     ax.tick_params(axis='x', which='both', top=True, labeltop=True)
     ax.xaxis.set_label_position('top')
     ax.set_xlabel(XLABEL, fontsize=10)
 
-# Left ylabel — left column
+# Left ylabel: left column
 for ax in axes[::2]:
     ax.set_ylabel(YLABEL, fontsize=10)
 
-# Right ylabel — right column (mirrored)
+# Right ylabel: right column (mirrored)
 for ax in axes[1::2]:
     ax.tick_params(axis='y', which='both', right=True, labelright=True)
     ax.yaxis.set_label_position('right')

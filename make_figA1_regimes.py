@@ -1,5 +1,5 @@
 """
-Publication-quality two-panel figure for sec:two_regimes — vertical layout.
+Publication-quality two-panel figure for sec:two_regimes: vertical layout.
 
 Panel (a): xi2_s decomposition vs s   [log-log, r=1 Mpc, M*=3.2e10 Msun]
 Panel (b): g_s/a0 vs r [Mpc]       [log-log, 8 s values, thin->thick lw]
@@ -104,7 +104,7 @@ fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(5.5, 7.0))
 fig.subplots_adjust(left=0.12, right=0.97, bottom=0.07, top=0.97, hspace=0.12)
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Panel (a)  — xi2_s decomposition
+# Panel (a) : xi2_s decomposition
 # ══════════════════════════════════════════════════════════════════════════════
 ax1.axvspan(0.28,  s_cross, alpha=0.09, color=C_NB,  zorder=0, lw=0)
 ax1.axvspan(s_cross, 3.8,   alpha=0.09, color=C_HUB, zorder=0, lw=0)
@@ -123,8 +123,8 @@ ax1.annotate(
 )
 
 # Regime labels in axes-fraction coordinates:
-#   NH: axes (0.10, 0.32) → data (s≈0.38, xi2≈0.46) — in red zone, well below hub
-#   HUB: axes (0.80, 0.45) → data (s≈1.75, xi2≈1.58) — in blue zone, below legend area
+#   NH: axes (0.10, 0.32) → data (s≈0.38, xi2≈0.46): in red zone, well below hub
+#   HUB: axes (0.80, 0.45) → data (s≈1.75, xi2≈1.58): in blue zone, below legend area
 ax1.text(0.19, 0.32, 'vicinity-\ndominated',
          transform=ax1.transAxes, color=C_NB, fontsize=7.5,
          va='center', ha='center', fontstyle='italic')
@@ -149,7 +149,7 @@ ax1.text(-0.09, 1.04, '(a)', transform=ax1.transAxes,
          fontsize=11, fontweight='bold', va='bottom', ha='left')
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Panel (b)  — g_cosm/a0 vs r, 8 s values, thin→thick line widths
+# Panel (b) : g_cosm/a0 vs r, 8 s values, thin→thick line widths
 # ══════════════════════════════════════════════════════════════════════════════
 
 # KiDS weak-lensing band
