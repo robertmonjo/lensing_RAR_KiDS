@@ -448,7 +448,7 @@ GBAR_MIN, GBAR_MAX = 3e-16, 3e-11
 gbar_c = np.logspace(np.log10(GBAR_MIN), np.log10(GBAR_MAX), 300)
 a0_si  = A0_CODE * CODE_TO_SI
 
-fig, axes = plt.subplots(3, 2, figsize=(8, 8.4), sharex=True, sharey=True)
+fig, axes = plt.subplots(3, 2, figsize=(8.8, 7.8), sharex=True, sharey=True)
 axes = axes.flatten()
 
 print("\nGenerating plot curves ...")
@@ -698,9 +698,9 @@ for ax in axes[1::2]:
     ax.yaxis.set_label_position('right')
     ax.set_ylabel(YLABEL, fontsize=10)
 
-plt.tight_layout(h_pad=0.25, w_pad=0.25)
+plt.tight_layout(pad=0.2, h_pad=0.25, w_pad=0.25)
 fig.legend(handles=_common_h, labels=_common_l, handler_map={_BandLineHandle: _HandlerBandLine()},
-           loc="lower center", bbox_to_anchor=(0.5, 1.0), ncol=3, fontsize=7.5, frameon=False,
+           loc="lower center", bbox_to_anchor=(0.5, 0.995), ncol=3, fontsize=7.5, frameon=False, borderaxespad=0.0,
            handlelength=2.1, columnspacing=1.2)
 
 out = Path(__file__).resolve().parent / "outputs" / "fig1_kids_rar.png"
