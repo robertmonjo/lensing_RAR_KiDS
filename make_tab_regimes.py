@@ -5,7 +5,7 @@ Every column is derived from the total BARYONIC mass M_bar:
   v_N = sqrt(G M_bar / r_sys),  v_H = r_sys / t0,
   r_eq = (G M_bar t0^2)^(1/3),  s_eq = 12^(1/3) r_eq / r_sys,
   xi_s^2 = 1/s^3 + v_H^2/(12 v_N^2),  g_s/a0 = (2c/t0) q(xi_s) / a0.
-Domain = Hubble if s/s_eq > 1 (Hubble term dominates xi_s^2), else vicin. (vicinity term).
+Domain = Hubble if s/s_eq > 1 (Hubble term dominates xi_s^2), else vicinity (vicinity term).
 
 1-sigma s interval:
   KiDS subsamples (this work) -> fit Delta chi2 = 1, read from tab_model_comparison.csv
@@ -65,7 +65,7 @@ def derive(mbar, rsys, s):
     xi2 = 1.0 / s ** 3 + vH ** 2 / (12 * vN ** 2)
     gs = 2 * C_KMS / T0 * q(math.sqrt(xi2)) * CODE_TO_SI / A0
     return dict(vN=vN, vH=vH, req=req, seq=seq, xi2=xi2, gs=gs,
-                domain=("Hubble" if s / seq > 1 else "vicin."))
+                domain=("Hubble" if s / seq > 1 else "vicinity"))
 
 
 # Stellar masses: mean of each stellar-mass bin (Brouwer et al. 2021) and, for the
@@ -377,7 +377,7 @@ body = []
 for sy in SYSTEMS:
     d = derive(sy["mbar"], sy["rsys"], sy["s"])
     _seq = sy.get("seq") or d["seq"]                                   # distributional override (SPARC)
-    _dom = "Hubble" if sy["s"] / _seq > 1 else "vicin."
+    _dom = "Hubble" if sy["s"] / _seq > 1 else "vicinity"
     xi_lo, xi_hi = interval(sy["mbar"], sy["rsys"], sy["s"], sy["s_lo"], sy["s_hi"], "xi2")
     gs_lo, gs_hi = interval(sy["mbar"], sy["rsys"], sy["s"], sy["s_lo"], sy["s_hi"], "gs")
     # display strings
