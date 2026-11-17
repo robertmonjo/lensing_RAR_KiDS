@@ -638,7 +638,7 @@ if SHADE_MODE == 'field':                           # actual g_s/a_0 field via q
     ax1.text(0.60, 0.47, 'high $g_s/a_0$\n(dynamical peak, $\\xi_s^2\\!\\approx\\!1$)',
              transform=ax1.transAxes, color='#7a3b00', fontsize=7.3, ha='center',
              va='center', fontstyle='italic')
-    ax1.text(0.60, 0.11, 'neighbourhood-dominated', transform=ax1.transAxes,
+    ax1.text(0.60, 0.11, 'vicinity-dominated', transform=ax1.transAxes,
              color='#555', fontsize=7.2, ha='center', fontstyle='italic')
     ax1.text(0.20, 0.90, 'Hubble-dominated', transform=ax1.transAxes,
              color='#555', fontsize=7.2, ha='center', fontstyle='italic')
@@ -657,7 +657,7 @@ elif SHADE_MODE == 'hybrid':                         # band along the xi^2=1 rid
     ax1.text(0.60, 0.47, 'high $g_s/a_0$\n($\\xi_s^2\\!\\approx\\!1$ ridge)',
              transform=ax1.transAxes, color='#444', fontsize=7.3, ha='center',
              va='center', fontstyle='italic')
-    ax1.text(0.60, 0.11, 'neighbourhood-dominated', transform=ax1.transAxes,
+    ax1.text(0.60, 0.11, 'vicinity-dominated', transform=ax1.transAxes,
              color='#555', fontsize=7.2, ha='center', fontstyle='italic')
     ax1.text(0.20, 0.90, 'Hubble-dominated', transform=ax1.transAxes,
              color='#555', fontsize=7.2, ha='center', fontstyle='italic')
@@ -680,7 +680,7 @@ elif SHADE_MODE == 'greybands':          # grey g_s field (r=0.5) + s_eq boundar
         ax1.text(_rlab, 5.0, rf'$s_\mathrm{{eq}}\,(r_\mathrm{{sys}}={_lb}\,\mathrm{{Mpc}})$',
                  color=_c, fontsize=6.6, rotation=44, rotation_mode='anchor',
                  ha='center', va='bottom', zorder=3)
-    ax1.text(0.62, 0.10, 'neighbourhood-dominated\n(below $s_\\mathrm{eq}$)', transform=ax1.transAxes,
+    ax1.text(0.62, 0.10, 'vicinity-dominated\n(below $s_\\mathrm{eq}$)', transform=ax1.transAxes,
              color='#555', fontsize=7.0, ha='center', fontstyle='italic')
     ax1.text(0.17, 0.90, 'Hubble-dominated\n(above $s_\\mathrm{eq}$)', transform=ax1.transAxes,
              color='#555', fontsize=7.0, ha='center', fontstyle='italic')

@@ -5,7 +5,7 @@ Every column is derived from the total BARYONIC mass M_bar:
   v_N = sqrt(G M_bar / r_sys),  v_H = r_sys / t0,
   r_eq = (G M_bar t0^2)^(1/3),  s_eq = 12^(1/3) r_eq / r_sys,
   xi_s^2 = 1/s^3 + v_H^2/(12 v_N^2),  g_s/a0 = (2c/t0) q(xi_s) / a0.
-Domain = Hubble if s/s_eq > 1 (Hubble term dominates xi_s^2), else neighb. (neighbourhood term).
+Domain = Hubble if s/s_eq > 1 (Hubble term dominates xi_s^2), else vicin. (vicinity term).
 
 1-sigma s interval:
   KiDS subsamples (this work) -> fit Delta chi2 = 1, read from tab_model_comparison.csv
@@ -65,7 +65,7 @@ def derive(mbar, rsys, s):
     xi2 = 1.0 / s ** 3 + vH ** 2 / (12 * vN ** 2)
     gs = 2 * C_KMS / T0 * q(math.sqrt(xi2)) * CODE_TO_SI / A0
     return dict(vN=vN, vH=vH, req=req, seq=seq, xi2=xi2, gs=gs,
-                domain=("Hubble" if s / seq > 1 else "neighb."))
+                domain=("Hubble" if s / seq > 1 else "vicin."))
 
 
 # Stellar masses: mean of each stellar-mass bin (Brouwer et al. 2021) and, for the
@@ -320,7 +320,7 @@ SYSTEMS = [
             _ud["MIGHTEE gas-rich UDGs"]["r_sys_kpc"], _ud["MIGHTEE gas-rich UDGs"]["s"], None, None,
             "Ponomareva2021", s_disp=_sdisp(_ud["MIGHTEE gas-rich UDGs"], 2),
             nsig_fn=lambda s: _ud["MIGHTEE gas-rich UDGs"]["n_sigma"]),
-    ref_row(r"Galaxy--galaxy WL",   1.0e11, 500, float(_gw["s"]), float(_gw["s_lo"]), float(_gw["s_hi"]),
+    ref_row(r"Galaxy--galaxy lensing", 1.0e11, 500, float(_gw["s"]), float(_gw["s_lo"]), float(_gw["s_hi"]),
             "Monjo2025", nsig_fn=nsig_ggwl),  # Mistele, no-z; s from reference_systems.csv
     # SPARC: distributional medians of the 50 galaxies (matches Fig. A.2): r_eq~284 kpc
     # (M_bar~2.68e10), s=3.08, and s_eq = median of the per-galaxy 12^(1/3) r_eq/r_sys = 34.
@@ -377,7 +377,7 @@ body = []
 for sy in SYSTEMS:
     d = derive(sy["mbar"], sy["rsys"], sy["s"])
     _seq = sy.get("seq") or d["seq"]                                   # distributional override (SPARC)
-    _dom = "Hubble" if sy["s"] / _seq > 1 else "neighb."
+    _dom = "Hubble" if sy["s"] / _seq > 1 else "vicin."
     xi_lo, xi_hi = interval(sy["mbar"], sy["rsys"], sy["s"], sy["s_lo"], sy["s_hi"], "xi2")
     gs_lo, gs_hi = interval(sy["mbar"], sy["rsys"], sy["s"], sy["s_lo"], sy["s_hi"], "gs")
     # display strings
